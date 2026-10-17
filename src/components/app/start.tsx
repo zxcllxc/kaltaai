@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useApp } from "@/lib/store";
 import { BIZ_LIST } from "@/lib/demo";
-import { guessMapping, readFile, toRows, TEMPLATE_CSV, type Field, type Mapping, type ParsedTable } from "@/lib/importer";
+import { guessMapping, isConfident, readFile, toRows, TEMPLATE_CSV, type Field, type Mapping, type ParsedTable } from "@/lib/importer";
 import { TopBar } from "./topbar";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +17,8 @@ const FIELD_LABEL: Record<Field, string> = {
   qty: "Количество",
   type: "Тип операции",
   supplier: "Поставщик",
+  refund: "Возврат / қайтару",
+  fee: "Комиссия",
   income: "Приход (если нет «Суммы»)",
   expense: "Расход (если нет «Суммы»)",
 };
@@ -36,9 +38,19 @@ export function Start() {
     try {
       const tb = await readFile(f);
       if (!tb.records.length) throw new Error("В файле нет строк");
+      const gm = guessMapping(tb.headers);
+      // уверены в колонках → сразу анализируем; иначе — экран ручного сопоставления
+      if (isConfident(gm)) {
+        const { rows } = toRows(tb, gm);
+        if (rows.length >= 5) {
+          loadRows(rows, f.name, biz);
+          return;
+        }
+      }
       setTable(tb);
       setFileName(f.name);
-      setMap(guessMapping(tb.headers));
+      setMap(gm);
+      setErr("Не уверены в колонках — проверьте сопоставление ниже.");
     } catch (e) {
       setErr("Не удалось прочитать файл: " + (e as Error).message);
     } finally {
@@ -115,7 +127,7 @@ export function Start() {
               <div>
                 <div className="font-semibold">Сопоставьте колонки</div>
                 <div className="text-sm text-muted-foreground">
-                  {fileName}: {table.records.length} строк. Колонки угаданы автоматически — поправьте, если нужно.
+                  {fileName}: {table.records.length} строк{table.sheets && table.sheets > 1 ? ` с ${table.sheets} листов` : ""}. Укажите, где дата и сумма; возвраты и комиссии вычтем из выручки.
                 </div>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">

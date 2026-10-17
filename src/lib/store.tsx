@@ -50,7 +50,7 @@ function detectCalendar(rows: Row[]): CalendarItem[] {
   for (const r of rows) if (r.type === "expense" && r.category) byCat.set(r.category, [...(byCat.get(r.category) ?? []), r]);
   const kind: Record<string, CalendarItem["kind"]> = { Аренда: "rent", Зарплата: "salary", Налоги: "tax", Коммуналка: "utilities" };
   return [...byCat.entries()]
-    .filter(([cat]) => cat !== "Прочее" && cat !== "Налоги") // налоги считает налоговый конверт
+    .filter(([cat]) => cat !== "Прочее" && cat !== "Налоги" && cat !== "Комиссия") // налоги считает налоговый конверт
     .map(([cat, rs]) => {
       const last = rs.sort((a, b) => (a.date < b.date ? -1 : 1))[rs.length - 1];
       return { id: cat, name: cat, amount: Math.round(last.amount), kind: kind[cat] ?? "other", day: parseDate(last.date).getDate() };

@@ -4,28 +4,45 @@ import { fmtDate } from "./dates";
 
 /** Гибкий импорт: CSV/XLSX, выгрузки Kaspi/1С/Excel. Колонки угадываются по синонимам. */
 
-export type Field = "date" | "item" | "qty" | "amount" | "type" | "supplier" | "income" | "expense";
+export type Field = "date" | "refund" | "fee" | "item" | "qty" | "amount" | "type" | "supplier" | "income" | "expense";
 export type Mapping = Partial<Record<Field, string>>;
 
 const SYN: Record<Field, string[]> = {
-  date: ["дата", "date", "күні", "дата операции", "дата и время", "день", "период"],
+  date: ["дата", "date", "күні", "дата операции", "дата и время", "операция күні", "день", "период"],
+  // Kaspi Pay: возвраты и комиссии вычитаются из выручки
+  refund: ["возврат", "сумма возврата", "возвраты", "қайтару", "қайтарым", "refund"],
+  fee: ["комиссия", "комиссия банка", "комиссия kaspi", "комиссиясы", "fee", "commission"],
   item: ["товар", "наименование", "номенклатура", "item", "product", "описание", "детали", "назначение", "статья", "позиция", "услуга", "название"],
   qty: ["кол-во", "количество", "qty", "quantity", "шт", "саны", "кол"],
   amount: ["сумма", "amount", "итого", "сумма операции", "total", "сомасы", "стоимость", "выручка"],
-  type: ["тип", "type", "операция", "вид операции", "вид", "направление", "категория"],
+  type: ["тип", "тип операции", "операция түрі", "type", "операция", "вид операции", "вид", "направление", "категория"],
   supplier: ["поставщик", "контрагент", "supplier", "получатель", "отправитель"],
   income: ["приход", "поступление", "доход", "кредит", "income"],
   expense: ["расход", "списание", "дебет", "expense"],
+};
+
+const CANON: Record<Field, string> = {
+  date: "Дата",
+  refund: "Возврат",
+  fee: "Комиссия",
+  item: "Товар",
+  qty: "Количество",
+  amount: "Сумма",
+  type: "Тип",
+  supplier: "Поставщик",
+  income: "Приход",
+  expense: "Расход",
 };
 
 export function guessMapping(headers: string[]): Mapping {
   const m: Mapping = {};
   const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} -]/gu, "").trim();
   for (const f of Object.keys(SYN) as Field[]) {
+    const free = headers.filter((h) => !Object.values(m).includes(h));
     const hit =
-      headers.find((h) => SYN[f].includes(norm(h))) ??
-      headers.find((h) => SYN[f].some((s) => norm(h).startsWith(s) || norm(h).includes(s)));
-    if (hit && !Object.values(m).includes(hit)) m[f] = hit;
+      free.find((h) => SYN[f].includes(norm(h))) ??
+      free.find((h) => SYN[f].some((s) => norm(h).startsWith(s) || norm(h).includes(s)));
+    if (hit) m[f] = hit;
   }
   return m;
 }
@@ -78,6 +95,12 @@ export function classify(typeVal: string, item: string, amount: number, hasType:
 export interface ParsedTable {
   headers: string[];
   records: Record<string, unknown>[];
+  sheets?: number;
+}
+
+/** Уверены ли мы в колонках: есть дата и сумма (или приход/расход). */
+export function isConfident(m: Mapping) {
+  return !!m.date && !!(m.amount || m.income || m.expense);
 }
 
 export async function readFile(file: File): Promise<ParsedTable> {
@@ -85,9 +108,20 @@ export async function readFile(file: File): Promise<ParsedTable> {
   if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
     const XLSX = await import("xlsx");
     const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: true, defval: "" });
-    return fromMatrix(raw);
+    // читаем ВСЕ листы (Kaspi Pay кладёт месяцы/точки на разные листы) и объединяем
+    const tables = wb.SheetNames.map((n) => fromMatrix(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[n], { header: 1, raw: true, defval: "" })))
+      .filter((t) => t.records.length && guessMapping(t.headers).date);
+    if (!tables.length) return fromMatrix(XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" }));
+    if (tables.length === 1) return { ...tables[0], sheets: 1 };
+    // у листов могут быть разные заголовки (Сумма / Сомасы) — приводим к общим названиям
+    const canon = tables.map((t) => {
+      const m = guessMapping(t.headers);
+      const rename = new Map(Object.entries(m).map(([f, h]) => [h as string, CANON[f as Field]]));
+      return t.records.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [rename.get(k) ?? k, v])));
+    });
+    const records = canon.flat();
+    const headers = [...new Set(records.flatMap((r) => Object.keys(r)))];
+    return { headers, records, sheets: tables.length };
   }
   const text = await file.text();
   const res = Papa.parse<string[]>(text.replace(/^﻿/, ""), { skipEmptyLines: true, delimiter: "" });
@@ -126,8 +160,16 @@ export function toRows(t: ParsedTable, m: Mapping): { rows: Row[]; skipped: numb
       skipped++;
       continue;
     }
-    const item = String((m.item ? rec[m.item] : "") || "Без названия").trim().slice(0, 80);
+    const item = String((m.item ? rec[m.item] : "") || "Выручка").trim().slice(0, 80);
     const typeVal = String((m.type ? rec[m.type] : "") ?? "");
+    // Kaspi Pay: комиссия — отдельный расход; возврат — минус к выручке
+    const fee = m.fee ? Math.abs(parseNumber(rec[m.fee])) : NaN;
+    if (!isNaN(fee) && fee > 0) rows.push({ date, type: "expense", item: "Комиссия Kaspi", qty: 1, amount: fee, category: "Комиссия" });
+    const refundCol = m.refund ? Math.abs(parseNumber(rec[m.refund])) : NaN;
+    if (/возврат|қайтар|refund|отмена/i.test(typeVal)) {
+      rows.push({ date, type: "sale", item: item === "Выручка" ? "Возвраты" : item, qty: 1, amount: -Math.abs(amount) });
+      continue;
+    }
     const { type, category } = classify(typeVal, item, amount, !!m.type);
     const q = m.qty ? parseNumber(rec[m.qty]) : NaN;
     rows.push({
@@ -135,7 +177,7 @@ export function toRows(t: ParsedTable, m: Mapping): { rows: Row[]; skipped: numb
       type,
       item: type === "expense" ? category ?? item : item,
       qty: isNaN(q) || q === 0 ? 1 : Math.abs(q),
-      amount: Math.abs(amount),
+      amount: type === "sale" && !isNaN(refundCol) ? Math.abs(amount) - refundCol : Math.abs(amount),
       supplier: m.supplier ? String(rec[m.supplier] ?? "") || undefined : undefined,
       category,
     });
