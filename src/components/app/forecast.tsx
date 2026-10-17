@@ -101,6 +101,18 @@ export function Forecast() {
             onChange={(v) => setWi({ ...wi, priceUp: v / 100 })}
             note="Допущение: при +10% цены продажи падают на 5% в штуках"
           />
+          {changed ? (() => {
+            const back = a.forecast.base.reduce((s, d) => s + d.inflow - d.purchases, 0) - base.forecast.base.reduce((s, d) => s + d.inflow - d.purchases, 0);
+            const lp = a.largestPayment;
+            const out = lp && wi.delayDays > 0 && !a.forecast.base.some((d) => d.events.some((e) => e.name === lp.name));
+            return (
+              <div className="rounded-lg bg-emerald-500/10 p-3 text-sm space-y-1">
+                {back > 0 && <div>Вернёте в оборот за 14 дней: <b className="text-emerald-700 dark:text-emerald-400">{money(back)}</b></div>}
+                {base.gap && a.gap?.shortfall !== base.gap.shortfall && <div>Разрыв меньше на <b>{money(base.gap.shortfall - (a.gap?.shortfall ?? 0))}</b></div>}
+                {out && <div className="text-xs text-amber-700 dark:text-amber-300">⚠️ Перенесённый платёж ушёл за горизонт 14 дней — деньги на него всё равно понадобятся.</div>}
+              </div>
+            );
+          })() : null}
           <div className="rounded-lg bg-muted p-3 text-sm grid grid-cols-2 gap-2">
             <div>
               Разрыв:{" "}

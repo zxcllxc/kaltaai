@@ -35,7 +35,7 @@ export function Shell() {
     { id: "home", label: t.home, icon: House },
     { id: "forecast", label: "14 дн", icon: TrendingUp },
     { id: "leaks", label: t.leaks, icon: TriangleAlert },
-    { id: "todo", label: t.todo.split(" ")[0], icon: ListChecks },
+    { id: "todo", label: t.plan, icon: ListChecks },
     { id: "chat", label: t.chat, icon: MessageCircle },
     { id: "more", label: t.more, icon: Ellipsis },
   ];
