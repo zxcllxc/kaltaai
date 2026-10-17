@@ -1,3 +1,5 @@
+import type { TaxSettings } from "./tax/kz2026";
+
 export type Biz = "shop" | "cafe" | "salon" | "auto";
 
 export type RowType = "sale" | "purchase" | "expense";
@@ -31,6 +33,7 @@ export interface Dataset {
   cash: number; // остаток денег на сегодня
   today: string; // YYYY-MM-DD — first forecast day
   calendar: CalendarItem[];
+  tax?: Partial<TaxSettings>;
 }
 
 export interface WhatIf {

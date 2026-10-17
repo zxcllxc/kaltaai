@@ -187,14 +187,14 @@ export function generateDemo(biz: Biz, todayStr?: string): Dataset {
     }
 
     if (date.getDate() === 1) rows.push({ date: ds, type: "expense", item: "Аренда", qty: 1, amount: p.rent, category: "Аренда" });
-    if (date.getDate() === 3) rows.push({ date: ds, type: "expense", item: "Налоги и коммуналка", qty: 1, amount: p.tax, category: "Налоги" });
+    if (date.getDate() === 3) rows.push({ date: ds, type: "expense", item: "Коммуналка и связь", qty: 1, amount: p.tax, category: "Коммуналка" });
     if (date.getDate() === salaryDay) rows.push({ date: ds, type: "expense", item: "Зарплата", qty: 1, amount: p.salary, category: "Зарплата" });
   }
   pendingRestock = {};
 
   const calendar: CalendarItem[] = [
     { id: "rent", name: "Аренда", amount: p.rent, kind: "rent", day: 1 },
-    { id: "tax", name: "Налоги и коммуналка", amount: p.tax, kind: "tax", day: 3 },
+    { id: "utilities", name: "Коммуналка и связь", amount: p.tax, kind: "utilities", day: 3 },
     { id: "salary", name: "Зарплата", amount: p.salary, kind: "salary", day: salaryDay },
     { id: "supplier", name: p.supplierInvoice.name, amount: p.supplierInvoice.amount, kind: "supplier", date: fmtDate(addDays(today, 9)) },
   ];

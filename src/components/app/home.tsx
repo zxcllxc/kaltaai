@@ -10,6 +10,7 @@ import { useGo } from "./shell";
 import { CashEditor } from "./cash";
 import { ActionCard } from "./todo";
 import { SUBSCRIPTION } from "./roi";
+import { FreeMoney } from "./free";
 
 export function Home() {
   const { a, ds, t, lang, done } = useApp();
@@ -24,7 +25,9 @@ export function Home() {
         </div>
       )}
 
-      <Card className="overflow-hidden border-0 bg-gradient-to-br from-emerald-600 to-emerald-800 text-white" data-tour="found">
+      <FreeMoney />
+
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-teal-700 to-slate-800 text-white" data-tour="found">
         <CardContent className="py-2">
           <div className="text-sm opacity-90">{t.found}</div>
           <div className="text-4xl sm:text-5xl font-bold tracking-tight tabular-nums">{money(a.found.total)}</div>

@@ -27,7 +27,7 @@ export default function Pitch() {
           <Sparkles className="size-3.5" /> Zhambyl Hub · AI for SME & Local Business
         </div>
         <div className="space-y-3">
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">ИИ-финдиректор для малого бизнеса Тараза</h1>
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">KaltaAI — ИИ-финдиректор для бизнеса Тараза</h1>
           <p className="text-lg text-white/70">
             Владелец магазина ведёт учёт в тетради и Excel. Он видит, сколько продал вчера, — но не видит, что через 9 дней не хватит денег на оплату поставщику.
           </p>

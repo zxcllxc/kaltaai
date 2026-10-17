@@ -7,7 +7,7 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin", "cyr
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Финдиректор Тараз — ИИ-финдиректор для малого бизнеса",
+  title: "KaltaAI — ИИ-финдиректор для бизнеса Тараза",
   description: "Загрузите продажи и закупки — получите прогноз денег на 14 дней, утечки в ₸ и 3 действия на сегодня.",
 };
 

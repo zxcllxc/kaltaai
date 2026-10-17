@@ -7,6 +7,7 @@ import { analyze, calibrateDemoCash, type Analysis } from "./analytics";
 import { generateDemo } from "./demo";
 import { addDays, fmtDate, parseDate } from "./dates";
 import { T, type Dict, type Lang } from "./texts";
+import type { TaxSettings } from "./tax/kz2026";
 
 const KEY = "findir:v1";
 
@@ -29,6 +30,7 @@ interface Ctx extends Saved {
   loadRows: (rows: Row[], source: string, biz: Biz) => void;
   setCash: (n: number) => void;
   setCalendar: (c: CalendarItem[]) => void;
+  setTax: (t: Partial<TaxSettings>) => void;
   toggleDone: (id: string, effect: number) => void;
   clear: () => void;
   ready: boolean;
@@ -48,7 +50,7 @@ function detectCalendar(rows: Row[]): CalendarItem[] {
   for (const r of rows) if (r.type === "expense" && r.category) byCat.set(r.category, [...(byCat.get(r.category) ?? []), r]);
   const kind: Record<string, CalendarItem["kind"]> = { Аренда: "rent", Зарплата: "salary", Налоги: "tax", Коммуналка: "utilities" };
   return [...byCat.entries()]
-    .filter(([cat]) => cat !== "Прочее")
+    .filter(([cat]) => cat !== "Прочее" && cat !== "Налоги") // налоги считает налоговый конверт
     .map(([cat, rs]) => {
       const last = rs.sort((a, b) => (a.date < b.date ? -1 : 1))[rs.length - 1];
       return { id: cat, name: cat, amount: Math.round(last.amount), kind: kind[cat] ?? "other", day: parseDate(last.date).getDate() };
@@ -66,7 +68,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         const v = JSON.parse(raw) as Saved;
         // демо-данные всегда «свежие» относительно сегодняшней даты
-        if (v.ds?.isDemo) v.ds = calibrateDemoCash(generateDemo(v.ds.biz));
+        if (v.ds?.isDemo) v.ds = { ...calibrateDemoCash(generateDemo(v.ds.biz)), tax: v.ds.tax };
         setS(v);
       }
     } catch {}
@@ -111,6 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     },
     setCash: (cash) => setS((p) => (p.ds ? { ...p, ds: { ...p.ds, cash } } : p)),
     setCalendar: (calendar) => setS((p) => (p.ds ? { ...p, ds: { ...p.ds, calendar } } : p)),
+    setTax: (tax) => setS((p) => (p.ds ? { ...p, ds: { ...p.ds, tax: { ...p.ds.tax, ...tax } } } : p)),
     toggleDone: (id, effect) =>
       setS((p) => {
         const done = { ...p.done };

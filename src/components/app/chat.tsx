@@ -68,7 +68,7 @@ export function Chat() {
           <Bot className="size-5" />
         </div>
         <div>
-          <div className="font-semibold leading-tight">Финдиректор</div>
+          <div className="font-semibold leading-tight">KaltaAI</div>
           <div className="text-xs opacity-80">{typing || shown < brief.length ? "печатает…" : "бот"}</div>
         </div>
       </div>
@@ -100,7 +100,7 @@ export function Chat() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Спросите финдиректора…"
+              placeholder="Спросите KaltaAI…"
               className="flex-1 rounded-full bg-white dark:bg-[#17212b] px-4 py-2.5 text-sm text-black dark:text-white outline-none"
             />
             <button className="size-10 rounded-full bg-[#5288c1] text-white grid place-items-center" aria-label="Отправить">

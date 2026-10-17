@@ -1,12 +1,13 @@
 import type { CalendarItem, Dataset, Row, WhatIf } from "./types";
 import { NO_WHATIF } from "./types";
 import { addDays, daysBetween, fmtDate, parseDate } from "./dates";
+import { taxCalendar, taxEnvelope, type TaxEnvelope } from "./tax/envelope";
 
 /** Все цифры продукта считаются здесь — детерминированно, без LLM. */
 
 export function money(n: number) {
   const r = Math.round(n);
-  return r.toLocaleString("ru-RU").replace(/ | /g, " ") + " ₸";
+  return r.toLocaleString("ru-RU").replace(/ | /g, " ").replace(/^-/, "−") + " ₸";
 }
 export function kmoney(n: number) {
   const a = Math.abs(n);
@@ -90,6 +91,8 @@ export interface Analysis {
   prevented: number;
   largestPayment: (CalendarItem & { due: string }) | null;
   hasStock: boolean;
+  tax: TaxEnvelope;
+  free: { value: number; cash: number; taxReserve: number; payments14: number; safety: number; payments: { name: string; amount: number; due: string }[] };
 }
 
 const sum = (a: number[]) => a.reduce((s, x) => s + x, 0);
@@ -175,6 +178,7 @@ export function findGap(days: Day[]): Gap | null {
 }
 
 export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
+  // eslint-disable-next-line no-param-reassign
   const rows = ds.rows;
   const today = ds.today;
   const dates = rows.map((r) => r.date).sort();
@@ -300,6 +304,9 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
     .sort((a, b) => b.overpayMonth - a.overpayMonth);
   const riseTotal = sum(rises.map((r) => r.overpayMonth));
 
+  const tax = taxEnvelope(ds, wdAvg.reduce((s, x) => s + x, 0) / 7, purchaseRatio);
+  const orig = ds;
+  ds = { ...ds, calendar: [...ds.calendar, ...taxCalendar(tax)] };
   const base: Base = { wdAvg, purchaseRatio, dead };
   const lp = largestPayment(ds);
   const fBase = runForecast(ds, base, wi, 1, lp);
@@ -337,7 +344,17 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
   const prio = (a: Action) => (a.id === "delay" ? 2 : a.id === "dead" && baseNoWi ? 1 : 0);
   actions.sort((a, b) => prio(b) - prio(a) || b.effect - a.effect);
 
+  // «Свободные деньги сегодня»
+  const pays = calendarEvents(ds.calendar, today, 14).map((e) => ({ name: e.item.name, amount: e.item.amount, due: e.due }));
+  const payments14 = sum(pays.map((p) => p.amount));
+  const taxInWindow = pays.some((p) => p.name.startsWith("Налог 910") || p.name.startsWith("НДС"));
+  const taxReserve = taxInWindow ? 0 : tax.reserve;
+  const safety = (7 * (purchases30 + expenses30)) / 30;
+  const free = { value: orig.cash - taxReserve - payments14 - safety, cash: orig.cash, taxReserve, payments14, safety, payments: pays };
+
   return {
+    tax,
+    free,
     from,
     to,
     days,

@@ -13,7 +13,7 @@ export function TopBar() {
       <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 h-14">
         <div className="size-8 rounded-lg bg-emerald-600 text-white grid place-items-center font-bold">₸</div>
         <div className="min-w-0 flex-1 leading-tight">
-          <div className="font-semibold text-sm">Финдиректор</div>
+          <div className="font-semibold text-sm">KaltaAI <span className="hidden sm:inline font-normal text-muted-foreground">· ИИ-финдиректор для бизнеса Тараза</span></div>
           {ds && <div className="text-xs text-muted-foreground truncate">{ds.isDemo ? bizName(ds.biz) : ds.source}</div>}
         </div>
         {ds?.isDemo && (

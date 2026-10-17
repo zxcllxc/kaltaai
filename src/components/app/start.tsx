@@ -66,7 +66,7 @@ export function Start() {
           <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
             <Sparkles className="size-3.5" /> Zhambyl Hub · AI for SME
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Финдиректор, который находит деньги в ₸</h1>
+          <h1 className="text-3xl font-bold tracking-tight">KaltaAI — финдиректор, который находит деньги в ₸</h1>
           <p className="text-muted-foreground">{t.tagline}. Загрузите продажи и закупки — увидите, когда закончатся деньги, где они заморожены и что сделать сегодня.</p>
         </div>
 
