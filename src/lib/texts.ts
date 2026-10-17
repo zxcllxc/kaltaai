@@ -32,7 +32,7 @@ export function actionText(a: Action, lang: Lang): { title: string; how: string 
     case "supplier":
       return { title: `${f.supplier}: обсудить цену или найти замену`, how: `Закупочная цена выросла на ${f.pct}: ${f.items}. Попросить старую цену или скидку за объём.` };
     case "weak":
-      return { title: `Сделать акцию в ${WD_RU_ACC[Number(f.wd)]}`, how: `В этот день выручка на ${f.drop} ниже обычной. «2+1» или скидка до 12:00.` };
+      return { title: `Сделать акцию ${Number(f.wd) === 2 ? "во" : "в"} ${WD_RU_ACC[Number(f.wd)]}`, how: `В этот день выручка на ${f.drop} ниже обычной. «2+1» или скидка до 12:00.` };
     case "citems":
       return { title: `Две недели не докупать товары группы C`, how: `${f.items} — дают ~5% выручки, но держат деньги.` };
   }

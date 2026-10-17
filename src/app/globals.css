@@ -135,3 +135,4 @@
 }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
+.tour-hl { outline: 3px solid #10b981; outline-offset: 4px; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0,0,0,.35); position: relative; z-index: 20; transition: box-shadow .3s; }

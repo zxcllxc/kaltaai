@@ -53,12 +53,12 @@ export function answer(q: string, a: Analysis, ds: Dataset): string {
     const wd = wdHit ?? a.weak?.wd;
     if (wd == null) return `За последние 4 недели выручка по дням недели ровная — сильных провалов нет. Средняя выручка в день: ${money(a.sales30 / 30)}.`;
     const avg = a.wdAvg[wd];
-    const others = a.wdAvg.filter((_, i) => i !== wd && a.wdAvg[i] > 0);
-    const med = others.sort((x, y) => x - y)[Math.floor(others.length / 2)] ?? avg;
-    const drop = med > 0 ? 1 - avg / med : 0;
+    const others = a.wdAvg.filter((_, i) => i !== wd && a.wdAvg[i] > 0).sort((x, y) => x - y);
+    const med = a.weak?.wd === wd ? a.weak.median : others[Math.floor(others.length / 2)] ?? avg;
+    const drop = a.weak?.wd === wd ? a.weak.dropPct : med > 0 ? 1 - avg / med : 0;
     if (drop < 0.08) return `${cap(WD_RU_FULL[wd])} — обычный день: ${money(avg)} против ${money(med)} в среднем. Провала нет.`;
     return [
-      `В ${acc(wd)} выручка в среднем ${money(avg)} — на ${Math.round(drop * 100)}% ниже обычного дня (${money(med)}).`,
+      `${wd === 2 ? "Во" : "В"} ${acc(wd)} выручка в среднем ${money(avg)} — на ${Math.round(drop * 100)}% ниже обычного дня (${money(med)}).`,
       `Это ≈ ${money((med - avg) * 4.3 * a.margin)} недополученной прибыли в месяц.`,
       `Что сделать: акция только в этот день («2+1», скидка до 12:00, комбо) и пост в WhatsApp накануне вечером.`,
     ].join("\n");
