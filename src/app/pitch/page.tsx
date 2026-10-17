@@ -1,20 +1,20 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play, TriangleAlert, PiggyBank, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
-import { analyze, calibrateDemoCash, money } from "@/lib/analytics";
+import { analyze, calibrateDemoCash, money, type Analysis } from "@/lib/analytics";
 import { generateDemo } from "@/lib/demo";
 import { human } from "@/lib/dates";
 
 export default function Pitch() {
   const { loadDemo } = useApp();
   const router = useRouter();
-  const { a } = useMemo(() => {
-    const ds = calibrateDemoCash(generateDemo("shop"));
-    return { a: analyze(ds) };
+  const [a, setA] = useState<Analysis | null>(null);
+  useEffect(() => {
+    setA(analyze(calibrateDemoCash(generateDemo("shop")))); // eslint-disable-line react-hooks/set-state-in-effect
   }, []);
   const start = () => {
     loadDemo("shop");
@@ -34,9 +34,9 @@ export default function Pitch() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Stat icon={TriangleAlert} color="text-red-400" label="Кассовый разрыв найден заранее" value={a.gap ? money(a.gap.shortfall) : "—"} sub={a.gap ? `${human(a.gap.date)}, за ${a.gap.dayIndex} дн. до` : ""} />
-          <Stat icon={PiggyBank} color="text-amber-300" label="Найдено денег" value={money(a.found.total)} sub="заморожено + слабые дни + переплата" />
-          <Stat icon={ShieldCheck} color="text-emerald-400" label="Предотвращённый разрыв" value={money(a.prevented)} sub="2 действия, 1 звонок" />
+          <Stat icon={TriangleAlert} color="text-red-400" label="Кассовый разрыв найден заранее" value={a?.gap ? money(a.gap.shortfall) : "…"} sub={a?.gap ? `${human(a.gap.date)}, за ${a.gap.dayIndex} дн. до` : ""} />
+          <Stat icon={PiggyBank} color="text-amber-300" label="Найдено денег" value={a ? money(a.found.total) : "…"} sub="заморожено + слабые дни + переплата" />
+          <Stat icon={ShieldCheck} color="text-emerald-400" label="Предотвращённый разрыв" value={a ? money(a.prevented) : "…"} sub="2 действия, 1 звонок" />
         </div>
         <p className="text-xs text-white/50">Цифры — на демо-данных магазина (сгенерированы с заложенными проблемами, не реальный бизнес).</p>
 
