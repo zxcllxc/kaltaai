@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useApp } from "@/lib/store";
 import { money, sellThrough, type ItemStat } from "@/lib/analytics";
 import { addDays, fmtDate, human, parseDate } from "@/lib/dates";
+import { AiBadge, callAI } from "./ai";
 
 function discountFor(d: ItemStat) {
   return d.daysNoSale >= 60 ? 0.4 : d.daysNoSale >= 45 ? 0.3 : 0.25;
@@ -46,6 +47,7 @@ export function Promo() {
               </div>
               <Post lang="RU" text={ru} />
               <Post lang="KZ" text={kz} />
+              <AiPosts facts={{ item: d.name, price: money(price), oldPrice: money(d.retail), discount: `${Math.round(disc * 100)}%`, until: human(until), left: `${d.stockQty} шт`, city: "Тараз" }} />
             </CardContent>
           </Card>
         );
@@ -55,12 +57,38 @@ export function Promo() {
   );
 }
 
-function Post({ lang, text }: { lang: string; text: string }) {
+function AiPosts({ facts }: { facts: Record<string, string> }) {
+  const [st, setSt] = useState<"idle" | "loading" | "fail" | { ru: string; kz: string }>("idle");
+  if (typeof st === "object")
+    return (
+      <>
+        <Post lang="RU" text={st.ru} ai />
+        <Post lang="KZ" text={st.kz} ai />
+      </>
+    );
+  return (
+    <button
+      className="w-full rounded-lg border border-violet-500/40 py-2 text-sm text-violet-700 dark:text-violet-300 disabled:opacity-60"
+      disabled={st === "loading"}
+      onClick={async () => {
+        setSt("loading");
+        const r = await callAI<{ ru: string; kz: string }>("promo", facts);
+        setSt(r?.ru && r?.kz ? { ru: r.ru, kz: r.kz } : "fail");
+      }}
+    >
+      {st === "loading" ? "ИИ пишет пост…" : st === "fail" ? "ИИ недоступен — используйте шаблон выше" : "✨ Написать пост с ИИ (RU + KZ)"}
+    </button>
+  );
+}
+
+function Post({ lang, text, ai = false }: { lang: string; text: string; ai?: boolean }) {
   const [ok, setOk] = useState(false);
   return (
     <div className="rounded-lg border p-2 text-sm space-y-2">
       <div className="flex justify-between items-center">
-        <span className="text-xs font-semibold text-muted-foreground">{lang}</span>
+        <span className="text-xs font-semibold text-muted-foreground inline-flex items-center gap-1">
+          {lang} <AiBadge ai={ai} />
+        </span>
         <div className="flex gap-2">
           <a className="text-xs text-emerald-700 dark:text-emerald-400 underline" href={`https://wa.me/?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer">
             WhatsApp

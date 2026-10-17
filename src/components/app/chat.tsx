@@ -7,11 +7,15 @@ import { briefing } from "@/lib/texts";
 import { answer, SUGGESTED } from "@/lib/ask";
 import { factsForLLM } from "@/lib/texts";
 import { useAiActions } from "./todo";
+import { AiBadge, callAI } from "./ai";
+
+let briefCache: { key: string; msgs: string[] | null } | null = null;
 
 interface Msg {
   from: "bot" | "me";
   text: string;
   time: string;
+  ai?: boolean;
 }
 
 const now = () => new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -24,7 +28,23 @@ export function Chat() {
   const [q, setQ] = useState("");
   const [typing, setTyping] = useState(false);
   const end = useRef<HTMLDivElement>(null);
-  const brief = a && ds ? briefing(a, ds, lang, ai ?? undefined) : [];
+  const bkey = ds ? `${ds.biz}|${ds.source}|${ds.cash}|${lang}` : "";
+  const [aiBrief, setAiBrief] = useState<string[] | null>(briefCache?.key === bkey ? briefCache.msgs : null);
+  const [briefLoading, setBriefLoading] = useState(briefCache?.key !== bkey);
+  useEffect(() => {
+    if (!a || !ds || briefCache?.key === bkey) return;
+    if (lang !== "ru") {
+      setBriefLoading(false);
+      return;
+    }
+    callAI<{ messages: string[] }>("brief", factsForLLM(a, ds)).then((r) => {
+      const msgs = Array.isArray(r?.messages) ? r.messages.slice(0, 2).map((m) => "🤖 " + m) : null;
+      briefCache = { key: bkey, msgs };
+      setAiBrief(msgs);
+      setBriefLoading(false);
+    });
+  }, [bkey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const brief = a && ds ? [...briefing(a, ds, lang, ai ?? undefined), ...(aiBrief ?? [])] : [];
 
   useEffect(() => {
     setShown(0);
@@ -47,17 +67,21 @@ export function Chat() {
     setTyping(true);
     const local = answer(text, a, ds);
     let reply = local;
+    let isAi = false;
     try {
       const r = await fetch("/api/advice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "ask", question: text, facts: { ...factsForLLM(a, ds), computedAnswer: local } }),
       }).then((r) => r.json());
-      if (r.ai && r.answer) reply = r.answer;
+      if (r.ai && r.answer) {
+        reply = r.answer;
+        isAi = true;
+      }
     } catch {}
     await new Promise((r) => setTimeout(r, 500));
     setTyping(false);
-    setExtra((m) => [...m, { from: "bot", text: reply, time: now() }]);
+    setExtra((m) => [...m, { from: "bot", text: reply, time: now(), ai: isAi }]);
   }
 
   const t0 = "08:00";
@@ -70,6 +94,9 @@ export function Chat() {
         <div>
           <div className="font-semibold leading-tight">KaltaAI</div>
           <div className="text-xs opacity-80">{typing || shown < brief.length ? "печатает…" : "бот"}</div>
+        </div>
+        <div className="ml-auto">
+          <AiBadge ai={!!aiBrief} loading={briefLoading} />
         </div>
       </div>
       <div className="flex-1 space-y-1.5 px-3 py-3">
@@ -123,6 +150,11 @@ function Bubble({ m }: { m: Msg }) {
         }`}
       >
         {m.text}
+        {m.ai !== undefined && (
+          <span className="ml-2 align-middle">
+            <AiBadge ai={m.ai} />
+          </span>
+        )}
         {m.time && <span className="ml-2 align-bottom text-[10px] text-black/40 dark:text-white/40">{m.time}</span>}
       </div>
     </div>

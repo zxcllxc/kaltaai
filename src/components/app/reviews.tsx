@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { AiBadge, callAI } from "./ai";
 
 /** Разбор отзывов из 2ГИС / Instagram: вставка текста → тональность, повторяющиеся жалобы, черновик ответа, задача сотруднику.
  *  Работает по словарю (без LLM и без парсинга сайтов). */
@@ -32,6 +33,8 @@ Kaspi QR не работал, пришлось бежать к банкомат�
 export function Reviews() {
   const [text, setText] = useState("");
   const [isDemo, setIsDemo] = useState(false);
+  const [aiRes, setAiRes] = useState<{ reply: string; task: string } | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const list = text.split(/\n+/).map((s) => s.trim()).filter((s) => s.length > 3);
   const scored = list.map((r) => {
     const pos = (r.match(new RegExp(POS, "gi")) ?? []).length;
@@ -48,7 +51,7 @@ export function Reviews() {
         <CardContent className="space-y-2">
           <div className="font-semibold">💬 Разбор отзывов</div>
           <p className="text-xs text-muted-foreground">Вставьте отзывы из 2ГИС, Instagram, WhatsApp — по одному на строку. Мы не парсим сайты: только то, что вставили вы.</p>
-          <Textarea rows={6} value={text} onChange={(e) => (setText(e.target.value), setIsDemo(false))} placeholder="Каждый отзыв с новой строки…" />
+          <Textarea rows={6} value={text} onChange={(e) => (setText(e.target.value), setIsDemo(false), setAiRes(null))} placeholder="Каждый отзыв с новой строки…" />
           <Button variant="outline" size="sm" onClick={() => (setText(DEMO), setIsDemo(true))}>
             Вставить пример (демо)
           </Button>
@@ -88,8 +91,24 @@ export function Reviews() {
           {top && (
             <Card>
               <CardContent className="space-y-1">
-                <div className="font-semibold">Черновик ответа на отзыв</div>
-                <p className="text-sm rounded-lg bg-muted p-2">Здравствуйте! {top.reply}. Будем рады видеть вас снова — покажите этот ответ на кассе и получите скидку 10% на следующую покупку.</p>
+                <div className="font-semibold flex items-center gap-2">Черновик ответа на отзыв <AiBadge ai={!!aiRes} loading={aiLoading} /></div>
+                <p className="text-sm rounded-lg bg-muted p-2">{aiRes ? aiRes.reply : `Здравствуйте! ${top.reply}. Будем рады видеть вас снова — покажите этот ответ на кассе и получите скидку 10% на следующую покупку.`}</p>
+                {aiRes && <p className="text-xs">📋 Задача от ИИ: {aiRes.task}</p>}
+                {!aiRes && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={aiLoading}
+                    onClick={async () => {
+                      setAiLoading(true);
+                      const r = await callAI<{ reply: string; task: string }>("reviews", { total: list.length, positive: pos, negative: neg, complaints: topics.map((x) => ({ topic: x.name, count: x.n })), templateReply: top.reply });
+                      setAiRes(r?.reply ? { reply: r.reply, task: r.task ?? "" } : null);
+                      setAiLoading(false);
+                    }}
+                  >
+                    ✨ Ответ и задача от ИИ
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}

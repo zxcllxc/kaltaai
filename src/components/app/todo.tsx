@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Sparkles } from "lucide-react";
+import { Check } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useApp } from "@/lib/store";
 import { money, type Action } from "@/lib/analytics";
 import { actionText, factsForLLM } from "@/lib/texts";
 import { SUBSCRIPTION } from "./roi";
+import { AiBadge } from "./ai";
 import { cn } from "@/lib/utils";
 
 let cache: { key: string; actions: Record<string, string> | null } | null = null;
@@ -53,11 +54,7 @@ export function ActionCard({ a, n, compact }: { a: Action; n: number; compact?: 
             <span className="text-muted-foreground">
               {t.deadline}: {a.deadlineDays} {t.days}
             </span>
-            {ai?.[a.id] && (
-              <span className="inline-flex items-center gap-0.5 text-violet-600">
-                <Sparkles className="size-3" /> ИИ
-              </span>
-            )}
+            <AiBadge ai={!!ai?.[a.id]} />
           </div>
         </div>
         <button
@@ -101,7 +98,7 @@ export function Todo() {
         <ActionCard key={x.id} a={x} n={i + 1} />
       ))}
       <p className="text-xs text-muted-foreground">
-        {ai ? "Формулировки — ИИ (NVIDIA NIM), " : "Формулировки — шаблоны (ИИ-ключ не подключён), "}все суммы и сроки посчитаны кодом по вашим данным.
+        {ai ? "Формулировки — ИИ (NVIDIA NIM, gpt-oss-20b), " : "Формулировки — шаблоны (ИИ недоступен), "}все суммы и сроки посчитаны кодом по вашим данным.
       </p>
     </div>
   );
