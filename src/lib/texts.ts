@@ -55,7 +55,7 @@ export function briefing(a: Analysis, ds: Dataset, lang: Lang, aiActions?: Recor
   msgs.push(`В кассе сейчас: ${money(ds.cash)}. За 30 дней: выручка ${kmoney(a.sales30)}, прибыль ${kmoney(a.profit30)}.`);
   if (g) {
     const ev = a.forecast.base.find((d) => d.date === g.date)?.events[0];
-    msgs.push(`⚠️ ${human(g.date)} денег не хватит: −${money(g.shortfall)}${ev ? ` — в этот день «${ev.name}» на ${money(ev.amount)}` : ""}.`);
+    msgs.push(`⚠️ ${human(g.date)} остаток опустится ниже резерва на налог и запас: −${money(g.shortfall)}${ev ? ` — в этот день «${ev.name}» на ${money(ev.amount)}` : ""}.`);
   } else msgs.push(`✅ Кассового разрыва в ближайшие 14 дней нет.`);
   if (a.frozenTotal > 0) msgs.push(`📦 В залежавшемся товаре заморожено ${money(a.frozenTotal)} (${a.dead.length} поз.).`);
   if (a.weak) msgs.push(`📉 ${cap(WD_RU_FULL[a.weak.wd])} — слабый день: выручка на ${Math.round(a.weak.dropPct * 100)}% ниже.`);

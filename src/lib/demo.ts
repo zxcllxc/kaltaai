@@ -28,6 +28,7 @@ interface BizProfile {
   tax: number;
   salary: number;
   supplierInvoice: { name: string; amount: number };
+  scale: number; // множитель объёма продаж (маленькая точка)
 }
 
 export const BIZ_LIST: { id: Biz; emoji: string }[] = [
@@ -41,10 +42,11 @@ const PROFILES: Record<Biz, BizProfile> = {
   shop: {
     title: "Магазин продуктов",
     name: "Магазин «Береке», мкр. Аса, Тараз",
-    rent: 200_000,
-    tax: 70_000,
-    salary: 300_000,
-    supplierInvoice: { name: "ТОО «Тараз-Опт» — оплата накладной", amount: 520_000 },
+    rent: 150_000,
+    tax: 45_000,
+    salary: 180_000,
+    scale: 0.6,
+    supplierInvoice: { name: "ТОО «Тараз-Опт» — оплата накладной", amount: 260_000 },
     items: [
       { name: "Хлеб «Тараз-Нан»", price: 180, cost: 130, supplier: "Тараз-Нан", base: 60 },
       { name: "Молоко 1 л", price: 520, cost: 410, supplier: "ТОО «Жамбыл-Сут»", base: 30, rise: true },
@@ -64,10 +66,11 @@ const PROFILES: Record<Biz, BizProfile> = {
   cafe: {
     title: "Кафе",
     name: "Кафе «Достар», ул. Толе би, Тараз",
-    rent: 380_000,
-    tax: 110_000,
-    salary: 650_000,
-    supplierInvoice: { name: "Мясной цех «Аулие-Ата» — оплата поставки", amount: 640_000 },
+    rent: 250_000,
+    tax: 70_000,
+    salary: 400_000,
+    scale: 0.4,
+    supplierInvoice: { name: "Мясной цех «Аулие-Ата» — оплата поставки", amount: 420_000 },
     items: [
       { name: "Лагман", price: 1800, cost: 650, supplier: "Мясной цех «Аулие-Ата»", base: 22, rise: true },
       { name: "Плов", price: 1900, cost: 700, supplier: "Мясной цех «Аулие-Ата»", base: 18, rise: true },
@@ -84,10 +87,11 @@ const PROFILES: Record<Biz, BizProfile> = {
   salon: {
     title: "Салон красоты",
     name: "Салон «Аружан», мкр. Жайлау, Тараз",
-    rent: 220_000,
-    tax: 60_000,
-    salary: 380_000,
-    supplierInvoice: { name: "Дистрибьютор косметики — оплата партии", amount: 410_000 },
+    rent: 180_000,
+    tax: 50_000,
+    salary: 300_000,
+    scale: 0.7,
+    supplierInvoice: { name: "Дистрибьютор косметики — оплата партии", amount: 250_000 },
     items: [
       { name: "Стрижка женская", price: 4000, cost: 300, supplier: "Косметика-Опт", base: 6, rise: true, service: true },
       { name: "Окрашивание", price: 15000, cost: 4500, supplier: "Косметика-Опт", base: 2, rise: true, service: true },
@@ -101,10 +105,11 @@ const PROFILES: Record<Biz, BizProfile> = {
   auto: {
     title: "Автосервис",
     name: "СТО «Тулпар», трасса Тараз–Шымкент",
-    rent: 300_000,
-    tax: 90_000,
-    salary: 600_000,
-    supplierInvoice: { name: "Автозапчасти «Жол» — оплата накладной", amount: 590_000 },
+    rent: 250_000,
+    tax: 70_000,
+    salary: 450_000,
+    scale: 0.7,
+    supplierInvoice: { name: "Автозапчасти «Жол» — оплата накладной", amount: 380_000 },
     items: [
       { name: "Замена масла", price: 6000, cost: 3800, supplier: "Автозапчасти «Жол»", base: 6, rise: true },
       { name: "Шиномонтаж (комплект)", price: 8000, cost: 500, supplier: "Шины-Тараз", base: 4, service: true },
@@ -137,13 +142,13 @@ function mulberry32(seed: number) {
 // пн..вс → множитель продаж (getDay: 0=вс)
 const WEEKDAY_FACTOR = [1.15, 1.0, 0.62, 1.0, 1.02, 1.12, 1.25];
 
-export function generateDemo(biz: Biz, todayStr?: string): Dataset {
+export function generateDemo(biz: Biz, todayStr?: string, gapDay = 9): Dataset {
   const p = PROFILES[biz];
   const rnd = mulberry32(biz.length * 9973 + 42);
   const today = todayStr ? parseDate(todayStr) : startOfToday();
   const start = addDays(today, -60);
   const rows: Row[] = [];
-  const salaryDay = addDays(today, 8).getDate();
+  const salaryDay = addDays(today, gapDay - 1).getDate();
 
   // цены продаж для «мёртвых» товаров, которые не продаются вообще (сырьё) — 0
   for (let d = 0; d < 60; d++) {
@@ -164,7 +169,7 @@ export function generateDemo(biz: Biz, todayStr?: string): Dataset {
         continue;
       }
       const noise = 0.75 + rnd() * 0.5;
-      const qty = Math.max(0, Math.round(it.base * wf * noise));
+      const qty = Math.max(0, Math.round(it.base * p.scale * wf * noise));
       if (qty > 0) rows.push({ date: ds, type: "sale", item: it.name, qty, amount: qty * it.price });
       if (!it.service || it.cost > 0) {
         const unit = Math.round(it.cost * (it.rise && d >= 30 ? 1.135 : 1));
@@ -196,7 +201,7 @@ export function generateDemo(biz: Biz, todayStr?: string): Dataset {
     { id: "rent", name: "Аренда", amount: p.rent, kind: "rent", day: 1 },
     { id: "utilities", name: "Коммуналка и связь", amount: p.tax, kind: "utilities", day: 3 },
     { id: "salary", name: "Зарплата", amount: p.salary, kind: "salary", day: salaryDay },
-    { id: "supplier", name: p.supplierInvoice.name, amount: p.supplierInvoice.amount, kind: "supplier", date: fmtDate(addDays(today, 9)) },
+    { id: "supplier", name: p.supplierInvoice.name, amount: p.supplierInvoice.amount, kind: "supplier", date: fmtDate(addDays(today, gapDay)) },
   ];
 
   const ds: Dataset = {

@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { Biz, CalendarItem, Dataset, Row, WhatIf } from "./types";
 import { NO_WHATIF } from "./types";
-import { analyze, calibrateDemoCash, type Analysis } from "./analytics";
+import { analyze, demoDataset, type Analysis } from "./analytics";
 import { generateDemo } from "./demo";
 import { addDays, fmtDate, parseDate } from "./dates";
 import { T, type Dict, type Lang } from "./texts";
@@ -68,7 +68,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         const v = JSON.parse(raw) as Saved;
         // демо-данные всегда «свежие» относительно сегодняшней даты
-        if (v.ds?.isDemo) v.ds = { ...calibrateDemoCash(generateDemo(v.ds.biz)), tax: v.ds.tax };
+        if (v.ds?.isDemo) v.ds = { ...demoDataset(v.ds.biz, generateDemo), tax: v.ds.tax };
         setS(v);
       }
     } catch {}
@@ -97,7 +97,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setBiz: (biz) => setS((p) => ({ ...p, biz })),
     loadDemo: (biz) => {
       setWi(NO_WHATIF);
-      setS((p) => ({ ...p, biz, done: {}, ds: calibrateDemoCash(generateDemo(biz)) }));
+      setS((p) => ({ ...p, biz, done: {}, ds: demoDataset(biz, generateDemo) }));
     },
     loadRows: (rows, source, biz) => {
       setWi(NO_WHATIF);

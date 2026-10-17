@@ -23,7 +23,7 @@ export function Forecast() {
       <h1 className="text-xl font-bold">{t.forecast}</h1>
       <Card>
         <CardContent className="space-y-3">
-          <BalanceChart base={a.forecast.base} pess={a.forecast.pess} opt={a.forecast.opt} compare={changed ? base.forecast.base : undefined} />
+          <BalanceChart base={a.forecast.base} pess={a.forecast.pess} opt={a.forecast.opt} compare={changed ? base.forecast.base : undefined} reserve={a.reserve} />
           <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
             <Legend c="bg-emerald-600" l="базовый" />
             <Legend c="bg-orange-500" l="пессимистичный" />
@@ -140,7 +140,7 @@ export function Forecast() {
             ))}
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Как считаем: средняя выручка по дням недели за последние 4 недели; закупки — в той же доле от выручки ({Math.round(a.purchaseRatio * 100)}%); плюс платежи из календаря.
+            Разрыв — день, когда остаток опускается ниже неприкосновенного резерва {money(a.reserve)} (налог + 7 дней фиксированных расходов; жёлтая линия). Как считаем: средняя выручка по дням недели за последние 4 недели; закупки — в той же доле от выручки ({Math.round(a.purchaseRatio * 100)}%); плюс платежи из календаря.
           </p>
         </CardContent>
       </Card>

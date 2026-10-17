@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Play, TriangleAlert, PiggyBank, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/store";
-import { analyze, calibrateDemoCash, money, type Analysis } from "@/lib/analytics";
+import { analyze, demoDataset, money, type Analysis } from "@/lib/analytics";
 import { generateDemo } from "@/lib/demo";
 import { human } from "@/lib/dates";
 
@@ -14,7 +14,7 @@ export default function Pitch() {
   const router = useRouter();
   const [a, setA] = useState<Analysis | null>(null);
   useEffect(() => {
-    setA(analyze(calibrateDemoCash(generateDemo("shop")))); // eslint-disable-line react-hooks/set-state-in-effect
+    setA(analyze(demoDataset("shop", generateDemo))); // eslint-disable-line react-hooks/set-state-in-effect
   }, []);
   const start = () => {
     loadDemo("shop");

@@ -57,7 +57,7 @@ export function Home() {
               {t.gapAt}: {humanWd(a.gap.date, lang)}
             </div>
             <div className="text-sm">
-              {lang === "kz" ? "Ақша жетпейді:" : "Не хватит до"} <b className="tabular-nums">{money(a.gap.shortfall)}</b>
+              {lang === "kz" ? "Резервтен төмен:" : "Ниже резерва на налог и запас на"} <b className="tabular-nums">{money(a.gap.shortfall)}</b>
               {a.forecast.base[a.gap.dayIndex]?.events[0] && <> — {lang === "kz" ? "төлем" : "платёж"} «{a.forecast.base[a.gap.dayIndex].events[0].name}»</>}.
             </div>
           </div>
@@ -83,7 +83,7 @@ export function Home() {
               {lang === "kz" ? "Толығырақ →" : "Подробно →"}
             </button>
           </div>
-          <BalanceChart base={a.forecast.base} height={180} />
+          <BalanceChart base={a.forecast.base} height={180} reserve={a.reserve} />
           <CashEditor />
         </CardContent>
       </Card>

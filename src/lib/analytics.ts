@@ -91,6 +91,7 @@ export interface Analysis {
   prevented: number;
   largestPayment: (CalendarItem & { due: string }) | null;
   hasStock: boolean;
+  reserve: number;
   tax: TaxEnvelope;
   free: { value: number; cash: number; taxReserve: number; payments14: number; safety: number; payments: { name: string; amount: number; due: string }[] };
 }
@@ -170,12 +171,14 @@ export function runForecast(ds: Dataset, b: Base, wi: WhatIf, salesMult: number,
   return out;
 }
 
-export function findGap(days: Day[]): Gap | null {
-  const i = days.findIndex((d) => d.balance < 0);
+/** Разрыв: остаток опускается ниже неприкосновенного резерва (налог + страховой запас). */
+export function findGap(days: Day[], reserve = 0): Gap | null {
+  const i = days.findIndex((d) => d.balance < reserve);
   if (i < 0) return null;
   const min = days.reduce((a, d) => (d.balance < a.balance ? d : a));
-  return { date: days[i].date, dayIndex: i, shortfall: -min.balance, minDate: min.date };
+  return { date: days[i].date, dayIndex: i, shortfall: reserve - min.balance, minDate: min.date };
 }
+
 
 export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
   // eslint-disable-next-line no-param-reassign
@@ -307,16 +310,24 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
   const tax = taxEnvelope(ds, wdAvg.reduce((s, x) => s + x, 0) / 7, purchaseRatio);
   const orig = ds;
   ds = { ...ds, calendar: [...ds.calendar, ...taxCalendar(tax)] };
+  const pays = calendarEvents(ds.calendar, today, 14).map((e) => ({ name: e.item.name, amount: e.item.amount, due: e.due }));
+  const payments14 = sum(pays.map((p) => p.amount));
+  const taxInWindow = pays.some((p) => p.name.startsWith("Налог 910") || p.name.startsWith("НДС"));
+  const taxReserve = taxInWindow ? 0 : tax.reserve;
+  // страховой запас: 7 дней ФИКСИРОВАННЫХ расходов (аренда, зарплата, коммуналка, соцплатежи), без закупок
+  const fixedMonthly = sum(ds.calendar.filter((c) => c.day && c.kind !== "supplier").map((c) => c.amount));
+  const safety = (7 * fixedMonthly) / 30;
+  const R = taxReserve + safety;
   const base: Base = { wdAvg, purchaseRatio, dead };
   const lp = largestPayment(ds);
   const fBase = runForecast(ds, base, wi, 1, lp);
   const fPess = runForecast(ds, base, wi, 0.85, lp);
   const fOpt = runForecast(ds, base, wi, 1.1, lp);
-  const gap = findGap(fBase);
+  const gap = findGap(fBase, R);
 
   // эффект «если сделать действия 1 и 2» — для метрики «предотвращённый разрыв»
-  const fixed = findGap(runForecast(ds, base, { ...wi, deadDiscount: Math.max(wi.deadDiscount, 0.3), delayDays: Math.max(wi.delayDays, 7) }, 1, lp));
-  const baseNoWi = findGap(runForecast(ds, base, NO_WHATIF, 1, lp));
+  const fixed = findGap(runForecast(ds, base, { ...wi, deadDiscount: Math.max(wi.deadDiscount, 0.3), delayDays: Math.max(wi.delayDays, 7) }, 1, lp), R);
+  const baseNoWi = findGap(runForecast(ds, base, NO_WHATIF, 1, lp), R);
   const prevented = baseNoWi ? baseNoWi.shortfall - (fixed?.shortfall ?? 0) : 0;
 
   // действия
@@ -326,7 +337,7 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
     actions.push({ id: "dead", effect: rec, deadlineDays: 7, facts: { items: dead.slice(0, 3).map((d) => d.name).join(", "), frozen: money(frozenTotal), discount: "30%" } });
   }
   if (baseNoWi && lp) {
-    const g2 = findGap(runForecast(ds, base, { ...NO_WHATIF, delayDays: 7 }, 1, lp));
+    const g2 = findGap(runForecast(ds, base, { ...NO_WHATIF, delayDays: 7 }, 1, lp), R);
     const eff = baseNoWi.shortfall - (g2?.shortfall ?? 0);
     if (eff > 0) actions.push({ id: "delay", effect: eff, deadlineDays: Math.max(1, daysBetween(today, lp.due) - 1), facts: { payment: lp.name, amount: money(lp.amount), due: lp.due } });
   }
@@ -345,14 +356,10 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
   actions.sort((a, b) => prio(b) - prio(a) || b.effect - a.effect);
 
   // «Свободные деньги сегодня»
-  const pays = calendarEvents(ds.calendar, today, 14).map((e) => ({ name: e.item.name, amount: e.item.amount, due: e.due }));
-  const payments14 = sum(pays.map((p) => p.amount));
-  const taxInWindow = pays.some((p) => p.name.startsWith("Налог 910") || p.name.startsWith("НДС"));
-  const taxReserve = taxInWindow ? 0 : tax.reserve;
-  const safety = (7 * (purchases30 + expenses30)) / 30;
   const free = { value: orig.cash - taxReserve - payments14 - safety, cash: orig.cash, taxReserve, payments14, safety, payments: pays };
 
   return {
+    reserve: R,
     tax,
     free,
     from,
@@ -373,8 +380,8 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
     riseTotal,
     forecast: { base: fBase, pess: fPess, opt: fOpt },
     gap,
-    gapPess: findGap(fPess),
-    gapOpt: findGap(fOpt),
+    gapPess: findGap(fPess, R),
+    gapOpt: findGap(fOpt, R),
     found: { total: frozenTotal + (weak?.lossMonth ?? 0) + riseTotal, frozen: frozenTotal, weak: weak?.lossMonth ?? 0, rise: riseTotal },
     actions: actions.slice(0, 5),
     prevented: Math.max(0, prevented),
@@ -383,13 +390,28 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
   };
 }
 
-/** Для демо: остаток в кассе ≥150 тыс ₸, а крупный платёж поставщику на 9-й день даёт разрыв ≈ −180 тыс ₸. */
-export function calibrateDemoCash(ds: Dataset): Dataset {
-  const a = analyze({ ...ds, cash: 0 });
-  const bal = a.forecast.base.map((d) => d.balance);
-  const need = Math.max(...bal.slice(0, 9).map((b) => -b)) + 60_000;
-  const cash = Math.round(Math.max(150_000, need) / 1000) * 1000;
-  const extra = Math.round((cash + bal[9] + 180_000) / 1000) * 1000;
-  const calendar = ds.calendar.map((c) => (c.kind === "supplier" && c.date ? { ...c, amount: Math.max(50_000, c.amount + extra) } : c));
-  return { ...ds, cash, calendar };
+/** Для демо: подбираем день крупного платежа и остаток в кассе так, чтобы
+ *  «Свободные деньги сегодня» были небольшим минусом (−50…−200 тыс ₸), а в прогнозе в этот же день был разрыв. */
+export function calibrateDemo(make: (gapDay: number) => Dataset): Dataset {
+  let fallback: Dataset | null = null;
+  for (let k = 9; k >= 1; k--) {
+    const ds = make(k);
+    const a0 = analyze({ ...ds, cash: 0 });
+    const R = a0.reserve;
+    const bal = a0.forecast.base.map((d) => d.balance);
+    for (let S = 20_000; S <= 150_000; S += 10_000) {
+      const cash = Math.round((R - bal[k] - S) / 1000) * 1000;
+      if (cash < 40_000 || bal.slice(0, k).some((x) => cash + x <= R + 5_000)) continue;
+      const c = { ...ds, cash };
+      const a = analyze(c);
+      fallback ??= c;
+      if (a.gap?.dayIndex === k && a.free.value <= -50_000 && a.free.value >= -200_000) return c;
+    }
+  }
+  return fallback ?? make(9);
+}
+
+/** Демо-набор для типа бизнеса, откалиброванный под правдоподобный сценарий. */
+export function demoDataset(biz: Dataset["biz"], make: (biz: Dataset["biz"], today: undefined, gapDay: number) => Dataset): Dataset {
+  return calibrateDemo((k) => make(biz, undefined, k));
 }
