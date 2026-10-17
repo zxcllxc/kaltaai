@@ -128,3 +128,10 @@
     @apply font-sans;
   }
 }
+@media print {
+  body * { visibility: hidden; }
+  #passport, #passport * { visibility: visible; }
+  #passport { position: absolute; left: 0; top: 0; width: 100%; }
+}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }

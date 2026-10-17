@@ -167,7 +167,7 @@ export function generateDemo(biz: Biz, todayStr?: string): Dataset {
       const qty = Math.max(0, Math.round(it.base * wf * noise));
       if (qty > 0) rows.push({ date: ds, type: "sale", item: it.name, qty, amount: qty * it.price });
       if (!it.service || it.cost > 0) {
-        const unit = Math.round(it.cost * (it.rise && d >= 30 ? 1.125 : 1));
+        const unit = Math.round(it.cost * (it.rise && d >= 30 ? 1.135 : 1));
         const r = (restock[it.name] ??= { qty: 0, amount: 0, supplier: it.supplier });
         r.qty += qty;
         r.amount += qty * unit;
