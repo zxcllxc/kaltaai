@@ -156,6 +156,7 @@ export function Start() {
           </Card>
         )}
 
+        <a href="/pitch" className="block text-center text-sm text-muted-foreground underline underline-offset-4">Режим питча для жюри →</a>
         <p className="flex items-start gap-2 text-xs text-muted-foreground">
           <ShieldCheck className="size-4 shrink-0" /> Файлы обрабатываются в вашем браузере и хранятся только в нём. ИИ получает лишь итоговые цифры. Удалить данные — одной кнопкой.
         </p>

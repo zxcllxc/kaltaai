@@ -69,7 +69,8 @@ export function classify(typeVal: string, item: string, amount: number, hasType:
   for (const [re, cat] of EXPENSE_WORDS) if (re.test(t)) return { type: "expense", category: cat };
   if (/закуп|постав|purchase|приход товара|накладн|оптом|покупка у/.test(typeVal.toLowerCase())) return { type: "purchase" };
   if (/прода|sale|выручк|пополнен|поступлен|оплата от|kaspi qr|сату|доход/.test(typeVal.toLowerCase())) return { type: "sale" };
-  if (/расход|списан|перевод|покупка|оплата|платеж|платёж/.test(typeVal.toLowerCase())) return { type: amount < 0 ? "expense" : "purchase" };
+  if (/покупка|оплата постав|товар/.test(typeVal.toLowerCase())) return { type: amount < 0 ? "purchase" : "sale" };
+  if (/расход|списан|перевод|оплата|платеж|платёж/.test(typeVal.toLowerCase())) return amount < 0 ? { type: "expense", category: "Прочее" } : { type: "sale" };
   if (!hasType) return { type: amount < 0 ? "purchase" : "sale" };
   return { type: amount < 0 ? "expense" : "sale", category: amount < 0 ? "Прочее" : undefined };
 }

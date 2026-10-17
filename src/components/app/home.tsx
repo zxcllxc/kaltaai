@@ -20,7 +20,7 @@ export function Home() {
     <div className="space-y-4">
       {ds.isDemo && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-400/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-          Это <b>демо-данные</b>: сгенерированный пример бизнеса в Таразе с заложенными проблемами. Загрузите свой файл, чтобы увидеть реальные цифры.
+          {lang === "kz" ? (<>Бұл <b>демо-деректер</b>: Тараздағы бизнестің жасанды мысалы. Нақты сандарды көру үшін өз файлыңызды жүктеңіз.</>) : (<>Это <b>демо-данные</b>: сгенерированный пример бизнеса в Таразе с заложенными проблемами. Загрузите свой файл, чтобы увидеть реальные цифры.</>)}
         </div>
       )}
 
@@ -54,8 +54,8 @@ export function Home() {
               {t.gapAt}: {humanWd(a.gap.date, lang)}
             </div>
             <div className="text-sm">
-              Не хватит до <b className="tabular-nums">{money(a.gap.shortfall)}</b>
-              {a.forecast.base[a.gap.dayIndex]?.events[0] && <> — платёж «{a.forecast.base[a.gap.dayIndex].events[0].name}»</>}.
+              {lang === "kz" ? "Ақша жетпейді:" : "Не хватит до"} <b className="tabular-nums">{money(a.gap.shortfall)}</b>
+              {a.forecast.base[a.gap.dayIndex]?.events[0] && <> — {lang === "kz" ? "төлем" : "платёж"} «{a.forecast.base[a.gap.dayIndex].events[0].name}»</>}.
             </div>
           </div>
           <ChevronRight className="size-5 text-muted-foreground" />
@@ -63,13 +63,13 @@ export function Home() {
       ) : (
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 flex gap-3 items-center">
           <CheckCircle2 className="size-6 text-emerald-600" />
-          <div className="font-medium">{t.noGap} в ближайшие 14 дней</div>
+          <div className="font-medium">{t.noGap} {lang === "kz" ? "алдағы 14 күнде" : "в ближайшие 14 дней"}</div>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-3" data-tour="metrics">
-        <Metric icon={ShieldCheck} label={t.prevented} value={money(a.prevented)} hint={a.prevented > 0 ? "если сделать шаги 1–2" : "разрыва нет"} />
-        <Metric icon={PiggyBank} label={t.frozenMoney} value={money(a.frozenTotal)} hint={`${a.dead.length} поз. без продаж 30+ дн.`} />
+        <Metric icon={ShieldCheck} label={t.prevented} value={money(a.prevented)} hint={a.prevented > 0 ? (lang === "kz" ? "1–2 қадамды орындасаңыз" : "если сделать шаги 1–2") : t.noGap} />
+        <Metric icon={PiggyBank} label={t.frozenMoney} value={money(a.frozenTotal)} hint={lang === "kz" ?`${a.dead.length} тауар 30+ күн сатылмаған` : `${a.dead.length} поз. без продаж 30+ дн.`} />
       </div>
 
       <Card>
@@ -77,7 +77,7 @@ export function Home() {
           <div className="flex items-center justify-between">
             <div className="font-semibold">{t.forecast}</div>
             <button className="text-sm text-emerald-700 dark:text-emerald-400" onClick={() => go("forecast")}>
-              Подробно →
+              {lang === "kz" ? "Толығырақ →" : "Подробно →"}
             </button>
           </div>
           <BalanceChart base={a.forecast.base} height={180} />
@@ -89,7 +89,7 @@ export function Home() {
         <div className="flex items-center justify-between">
           <div className="font-semibold">{t.todo}</div>
           <button className="text-sm text-emerald-700 dark:text-emerald-400" onClick={() => go("todo")}>
-            Все {a.actions.length} →
+            {lang === "kz" ? "Барлығы" : "Все"} {a.actions.length} →
           </button>
         </div>
         {a.actions.slice(0, 3).map((x, i) => (

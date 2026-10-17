@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Upload, Calendar, Megaphone, HeartPulse, Database } from "lucide-react";
+import { Trash2, Upload, Calendar, Megaphone, HeartPulse, Database, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useApp } from "@/lib/store";
 import { PaymentCalendar } from "./calendar";
 import { Promo } from "./promo";
 import { Health } from "./health";
+import { Reviews } from "./reviews";
 import { cn } from "@/lib/utils";
 
-type Sub = "calendar" | "promo" | "health" | "data";
+type Sub = "calendar" | "promo" | "health" | "reviews" | "data";
 
 export function More() {
   const { ds, t, clear } = useApp();
@@ -20,11 +21,12 @@ export function More() {
     { id: "calendar", label: "Платежи", icon: Calendar },
     { id: "promo", label: "Акции", icon: Megaphone },
     { id: "health", label: "Паспорт", icon: HeartPulse },
+    { id: "reviews", label: "Отзывы", icon: MessageSquareText },
     { id: "data", label: "Данные", icon: Database },
   ];
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted p-1 print:hidden" data-tour="more-tabs">
+      <div className="grid grid-cols-5 gap-1 rounded-xl bg-muted p-1 print:hidden" data-tour="more-tabs">
         {subs.map((s) => (
           <button
             key={s.id}
@@ -39,6 +41,7 @@ export function More() {
       {sub === "calendar" && <PaymentCalendar />}
       {sub === "promo" && <Promo />}
       {sub === "health" && <Health />}
+      {sub === "reviews" && <Reviews />}
       {sub === "data" && (
         <Card>
           <CardContent className="space-y-3">

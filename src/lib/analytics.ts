@@ -204,7 +204,7 @@ export function analyze(ds: Dataset, wi: WhatIf = NO_WHATIF): Analysis {
   const purchWin = sum(rows.filter((r) => r.type === "purchase" && inRange(r, winFrom, today)).map((r) => r.amount));
   const salesWin = sum([...salesByDate.values()]);
   const purchaseRatio = salesWin > 0 ? Math.min(1.2, purchWin / salesWin) : 0;
-  const margin = sales30 > 0 ? Math.min(0.8, Math.max(0.08, 1 - purchases30 / sales30)) : 0.25;
+  const margin = sales30 > 0 && purchases30 > 0 ? Math.min(0.8, Math.max(0.08, 1 - purchases30 / sales30)) : 0.25;
 
   // слабый день
   let weak: Analysis["weak"] = null;
