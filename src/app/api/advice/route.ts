@@ -8,7 +8,7 @@ const ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 const MODEL = process.env.NVIDIA_MODEL || "openai/gpt-oss-20b";
 
 const SYSTEM =
-  "Reasoning: low. Ты KaltaAI — финансовый директор малого бизнеса в Таразе. Пиши коротко, по-человечески, без воды и без markdown. " +
+  "Reasoning: low. Ты KaltaAI — финансовый директор малого бизнеса в Таразе. Пиши коротко, по-человечески, без воды и без markdown. Валюта — только тенге (₸), никогда не рубли. " +
   "ЗАПРЕЩЕНО придумывать, пересчитывать или округлять числа: используй только суммы, проценты и даты, которые есть во входных фактах, дословно. Если числа нет в фактах — пиши без числа.";
 
 type Mode = "actions" | "brief" | "ask" | "promo" | "reviews";
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     });
     if (!r.ok) return NextResponse.json({ ai: false, reason: `http-${r.status}` });
     const j = await r.json();
-    const text: string = (j.choices?.[0]?.message?.content ?? "").trim();
+    const text: string = (j.choices?.[0]?.message?.content ?? "").trim().replace(/₽|руб.?(лей|ля|ль)?/g, "₸");
     if (!text) return NextResponse.json({ ai: false, reason: "empty" });
     // защита от выдуманных чисел: каждое число ≥ 100 из ответа должно быть в фактах
     const factStr = JSON.stringify(body.facts).replace(/[\s  ]/g, "");
