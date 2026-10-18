@@ -43,7 +43,7 @@ export function answer(q: string, a: Analysis, ds: Dataset, lang: Lang = "ru"): 
     const name = dn(lp.name, lang);
     if (kz)
       return [
-        `${quote(name)} төлемі ${money(lp.amount)}, жоспар бойынша ${humanWd(lp.due, "kz")}. Оны ${humanWd(fmtDate(d), "kz")} дейін (+${k} күн) кейінге қалдырсаңыз:`,
+        `${quote(name)} төлемі ${money(lp.amount)}, жоспар бойынша ${humanWd(lp.due, "kz")}. Оны ${dueDate(fmtDate(d), "kz")} дейін (+${k} күн) кейінге қалдырсаңыз:`,
         `• қазір бүгін бос ақша ${money(a.story.free)}`,
         `• кейін бос ақша ${money(after.story.free)}${after.story.kind === "ok" ? " — 14 күнде жетіспеушілік жоқ ✅" : ""}`,
         "Тәуекел: жеткізуші келесі жүкті ұстап қалуы мүмкін — алдын ала жазбаша келісіңіз.",
@@ -96,7 +96,7 @@ export function answer(q: string, a: Analysis, ds: Dataset, lang: Lang = "ru"): 
     const pays = [...a.story.breakdown.payments].sort((x, y) => y.amount - x.amount).slice(0, 3);
     const list = pays.map((p) => `${dn(p.name, lang)} ${money(p.amount)}`).join(", ");
     return kz
-      ? `${st.sentence} ${longDate(a.story.critical, "kz")} дейін шамамен ${money(a.story.breakdown.inflow)} түсім түседі, бірақ төлемдер кетеді: ${list}. Оған қоса ${money(a.reserve)} резервті сақтау керек: салық ${money(a.taxReserve)} және 7 күндік шығын ${money(a.safety)}.`
+      ? `${st.sentence} ${dueDate(a.story.critical, "kz")} дейін шамамен ${money(a.story.breakdown.inflow)} түсім түседі, бірақ төлемдер кетеді: ${list}. Оған қоса ${money(a.reserve)} резервті сақтау керек: салық ${money(a.taxReserve)} және 7 күндік шығын ${money(a.safety)}.`
       : `${st.sentence} До ${longDate(a.story.critical)} придёт ≈ ${money(a.story.breakdown.inflow)} выручки, но уйдут платежи: ${list}. И нужно сохранить резерв ${money(a.reserve)}: налог ${money(a.taxReserve)} и 7 дней расходов ${money(a.safety)}.`;
   }
 
