@@ -54,7 +54,7 @@ export default function Pitch() {
               <div className="space-y-2 text-sm">
                 <div className="font-semibold">Брифинг в Telegram</div>
                 <p className="text-white/75">Сканируйте — бот пришлёт утренний брифинг по демо.</p>
-                <a href={tg} className="inline-flex items-center gap-1.5 rounded-md bg-[#2AABEE] px-3 py-1.5 font-medium text-white" target="_blank" rel="noreferrer">
+                <a href={tg} className="inline-flex items-center gap-1.5 rounded-md bg-[#1e6fa8] px-3 py-1.5 font-medium text-white" target="_blank" rel="noreferrer">
                   <Send className="size-4" aria-hidden /> @{TELEGRAM_BOT}
                 </a>
               </div>

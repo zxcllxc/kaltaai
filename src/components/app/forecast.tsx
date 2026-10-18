@@ -8,7 +8,7 @@ import { humanWd } from "@/lib/dates";
 import { dn } from "@/lib/demo";
 import { NO_WHATIF } from "@/lib/types";
 import { q, storyShort, storyText } from "@/lib/texts";
-import { BalanceChart } from "./chart";
+import { BalanceChart } from "./chart-lazy";
 import { CashEditor } from "./cash";
 
 export function Forecast() {

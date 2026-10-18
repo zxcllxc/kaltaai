@@ -8,7 +8,7 @@ import { human } from "@/lib/dates";
 import { dn } from "@/lib/demo";
 import { FLAGS } from "@/lib/flags";
 import { storyShort } from "@/lib/texts";
-import { BalanceChart } from "./chart";
+import { BalanceChart } from "./chart-lazy";
 import { useGo } from "./shell";
 import { CashEditor } from "./cash";
 import { ActionCard } from "./todo";

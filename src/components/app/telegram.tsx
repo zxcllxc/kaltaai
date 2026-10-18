@@ -15,7 +15,7 @@ export function TelegramCard() {
         <div className="flex-1 space-y-2">
           <h2 className="font-semibold">{t.tgTitle}</h2>
           <p className="text-sm text-muted-foreground">{t.tgText}</p>
-          <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md bg-[#2AABEE] px-3 py-2 text-sm font-medium text-white">
+          <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md bg-[#1e6fa8] px-3 py-2 text-sm font-medium text-white">
             <Send className="size-4" aria-hidden /> {t.tgOpen} @{TELEGRAM_BOT}
           </a>
         </div>

@@ -39,7 +39,7 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur print:hidden">
       <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 h-14">
-        <div className="size-8 shrink-0 rounded-lg bg-emerald-600 text-white grid place-items-center font-bold" aria-hidden>
+        <div className="size-8 shrink-0 rounded-lg bg-emerald-700 text-white grid place-items-center font-bold" aria-hidden>
           ₸
         </div>
         <div className="min-w-0 flex-1 leading-tight">
@@ -53,7 +53,7 @@ export function TopBar() {
             {t.demoBadge}
           </span>
         )}
-        <button className="shrink-0 rounded-md border px-2 py-1 text-xs font-semibold" onClick={() => setLang(lang === "ru" ? "kz" : "ru")} aria-label={lang === "ru" ? "Қазақ тіліне ауысу" : "Переключить на русский"}>
+        <button className="shrink-0 rounded-md border px-2 py-1 text-xs font-semibold" onClick={() => setLang(lang === "ru" ? "kz" : "ru")} aria-label={lang === "ru" ? "ҚАЗ — қазақ тіліне ауысу" : "РУС — переключить на русский"}>
           {t.langToggle}
         </button>
         <button className="shrink-0 rounded-md border p-1.5" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} aria-label={t.themeAria}>

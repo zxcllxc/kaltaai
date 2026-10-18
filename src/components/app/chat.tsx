@@ -79,7 +79,7 @@ export function Chat() {
   return (
     <div className="-mx-4 -mt-4 flex flex-col min-h-[calc(100dvh-8.5rem)] bg-[#c7d8b8] dark:bg-[#0e1621]">
       <div className="flex items-center gap-3 bg-[#517da2] dark:bg-[#17212b] px-4 py-2 text-white">
-        <div className="size-10 rounded-full bg-emerald-600 grid place-items-center" aria-hidden>
+        <div className="size-10 rounded-full bg-emerald-700 grid place-items-center" aria-hidden>
           <Bot className="size-5" />
         </div>
         <div>

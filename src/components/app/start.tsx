@@ -79,7 +79,7 @@ export function Start() {
     <div className="flex-1 flex flex-col">
       <TopBar />
       <div className="kalta-bootmsg flex-1 place-items-center py-24 text-muted-foreground" aria-hidden>
-        <div className="size-12 rounded-xl bg-emerald-600 text-white grid place-items-center text-2xl font-bold animate-pulse">₸</div>
+        <div className="size-12 rounded-xl bg-emerald-700 text-white grid place-items-center text-2xl font-bold animate-pulse">₸</div>
       </div>
       <main className="kalta-landing mx-auto w-full max-w-xl px-4 pb-16 pt-6 space-y-6">
         <noscript>
@@ -127,7 +127,7 @@ export function Start() {
               e.preventDefault();
               loadDemo(biz);
             }}
-            className="inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 text-base font-medium text-white hover:bg-emerald-700"
+            className="inline-flex h-14 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 text-base font-medium text-white hover:bg-emerald-800"
           >
             <Sparkles className="size-5" aria-hidden /> {t.demo}
           </a>
