@@ -106,19 +106,32 @@ export function PhotoImport() {
     setState("loading");
     try {
       const image = await shrink(f);
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 45_000);
-      const r = await fetch("/api/vision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }), signal: ctrl.signal }).finally(() => clearTimeout(timer));
-      const j = await r.json();
+      // одна автоматическая повторная попытка: vision-модель иногда отвечает ошибкой с первого раза
+      let r: Response | null = null;
+      let j: { ok?: boolean; rows?: unknown[]; date?: string | null } = {};
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 45_000);
+        try {
+          r = await fetch("/api/vision", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ image }), signal: ctrl.signal });
+          j = await r.json();
+        } catch {
+          j = {};
+        } finally {
+          clearTimeout(timer);
+        }
+        if (j.ok || r?.status === 429) break;
+      }
+      if (!r) throw new Error("fail");
       if (r.status === 429) throw new Error("limit");
       if (!j.ok) throw new Error("fail");
-      if (!j.rows.length) {
+      if (!j.rows?.length) {
         setErr(l.empty);
         setState("idle");
         return;
       }
-      setDate(toIso(j.date));
-      setRows(j.rows.map((x: { item: string; qty: number | null; amount: number; type: RowType }) => ({ item: x.item, qty: x.qty == null ? "" : String(x.qty), amount: String(x.amount), type: x.type, on: true })));
+      setDate(toIso(j.date ?? null));
+      setRows((j.rows as { item: string; qty: number | null; amount: number; type: RowType }[]).map((x: { item: string; qty: number | null; amount: number; type: RowType }) => ({ item: x.item, qty: x.qty == null ? "" : String(x.qty), amount: String(x.amount), type: x.type, on: true })));
       setState("check");
     } catch (e) {
       setErr((e as Error).message === "limit" ? l.limit : l.fail);
