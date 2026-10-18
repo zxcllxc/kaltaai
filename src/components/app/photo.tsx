@@ -98,7 +98,7 @@ export function PhotoImport() {
   const ref = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<"idle" | "loading" | "check">("idle");
   const [err, setErr] = useState("");
-  const [date, setDate] = useState(fmtDate(new Date()));
+  const [date, setDate] = useState(""); // ставится после распознавания (без new Date() при пререндере)
   const [rows, setRows] = useState<Draft[]>([]);
 
   async function onFile(f: File) {
