@@ -97,7 +97,7 @@ export function Chat() {
         ))}
         {done && extra.map((m, i) => <Bubble key={"e" + i} m={m} />)}
         {typing && <Bubble m={{ from: "bot", text: "…", time: "" }} />}
-        <div ref={end} />
+        <div ref={end} style={{ scrollMarginBottom: 190 }} />
       </div>
       {done && (
         <div className="sticky bottom-16 space-y-2 border-t border-black/10 bg-[#c7d8b8] px-3 pb-3 pt-2 dark:border-white/10 dark:bg-[#0e1621]">
