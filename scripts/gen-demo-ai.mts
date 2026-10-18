@@ -13,11 +13,11 @@ import type { Biz } from "../src/lib/types.ts";
 const BASE = process.argv[2] ?? "http://localhost:3100";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function call(mode: string, facts: unknown, tries = 3): Promise<Record<string, unknown> | null> {
+async function call(mode: string, facts: unknown, tries = 3, ok: (r: Record<string, unknown>) => boolean = () => true): Promise<Record<string, unknown> | null> {
   for (let i = 0; i < tries; i++) {
     const r = await fetch(BASE + "/api/advice", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode, facts }) }).then((x) => x.json()).catch(() => null);
     await sleep(3500);
-    if (r?.ai) return r;
+    if (r?.ai && ok(r)) return r;
     console.log("  retry", mode, r?.reason);
   }
   return null;
@@ -30,15 +30,17 @@ for (const biz of ["shop", "cafe", "salon", "auto"] as Biz[]) {
   const f = factsForLLM(a, ds, "ru") as Record<string, unknown>;
   const date = a.story.date ? onDate(a.story.date) : "";
   // без дат: они подставятся на сайте в день показа
-  const facts = { ...f, today: "сегодня", story: storyText(a.story, a, "ru").sentence.replace(date, "{date}"), tax: { ...(f.tax as object), social: undefined }, paymentsUntilHardestDay: undefined };
+  const NOTE = "Плейсхолдеры в фигурных скобках ({date}, {until}) оставь в тексте как есть, дословно, не заменяй их словами вроде «сегодня».";
+  const facts = { ...f, note: NOTE, today: undefined, story: storyText(a.story, a, "ru").sentence.replace(date, "{date}"), tax: { ...(f.tax as object), social: undefined }, paymentsUntilHardestDay: undefined };
   const actions = await call("actions", facts);
-  const brief = await call("brief", facts);
+  const briefOk = (r: Record<string, unknown>) => Array.isArray(r.messages) && (r.messages as string[]).length >= 2 && !(r.messages as string[]).some((m) => /сегодня[^.]*резерв/i.test(m));
+  const brief = await call("brief", facts, 5, briefOk);
   const promo: Record<string, { ru: string; kz: string }> = {};
   for (const d of a.dead.slice(0, 3)) {
     const disc = d.daysNoSale >= 60 ? 0.4 : d.daysNoSale >= 45 ? 0.3 : 0.25;
     const price = Math.round((d.retail * (1 - disc)) / 10) * 10;
     void sellThrough;
-    const r = await call("promo", { item: d.name, itemKz: dn(d.name, "kz"), price: money(price), oldPrice: money(d.retail), discount: `${Math.round(disc * 100)}%`, untilRu: "{until}", untilKz: "{until}", left: String(d.stockQty), city: "Тараз" });
+    const r = await call("promo", { note: NOTE, item: d.name, itemKz: dn(d.name, "kz"), price: money(price), oldPrice: money(d.retail), discount: `${Math.round(disc * 100)}%`, untilRu: "{until}", untilKz: "{until}", left: String(d.stockQty), city: "Тараз" }, 5, (x) => String(x.ru).includes("{until}") && String(x.kz).includes("{until}") && String(x.ru).includes(d.name) && !/[әғқңөұүһі]/i.test(String(x.ru)) && /бұрын/i.test(String(x.kz)));
     if (r && typeof r.ru === "string" && typeof r.kz === "string" && r.ru.includes("{until}") && r.kz.includes("{until}")) promo[d.name] = { ru: r.ru, kz: r.kz };
     else console.log("  promo skipped (нет плейсхолдера даты)", biz, d.name);
   }
