@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Send, Bot } from "lucide-react";
 import { useApp } from "@/lib/store";
-import { briefing } from "@/lib/texts";
-import { answer, SUGGESTED } from "@/lib/ask";
-import { factsForLLM } from "@/lib/texts";
+import { briefing, factsForLLM } from "@/lib/texts";
+import { answer, MAX_QUESTION } from "@/lib/ask";
+import { DEMO_AI } from "@/lib/demo-ai";
+import { FLAGS } from "@/lib/flags";
 import { useAiActions } from "./todo";
-import { AiBadge, callAI } from "./ai";
-
-let briefCache: { key: string; msgs: string[] | null } | null = null;
+import { onDate } from "@/lib/dates";
+import { AiBadge, callAI, useAI } from "./ai";
 
 interface Msg {
   from: "bot" | "me";
@@ -18,40 +18,36 @@ interface Msg {
   ai?: boolean;
 }
 
-const now = () => new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+const now = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
 
 export function Chat() {
-  const { a, ds, lang } = useApp();
-  const ai = useAiActions();
+  const { a, ds, lang, t } = useApp();
+  const { ai } = useAiActions();
+  const facts = useMemo(() => (a && ds ? factsForLLM(a, ds, lang) : null), [a, ds, lang]);
+  const preset = ds?.isDemo && FLAGS.aiCache && lang === "ru" ? (DEMO_AI[ds.biz]?.brief ?? null) : null;
+  const presetObj = useMemo(() => (preset ? { messages: preset } : null), [preset]);
+  const aiBrief = useAI<{ messages: string[] }>("brief", facts, { enabled: !!facts && lang === "ru", preset: presetObj });
+  const when = a?.story.date ? onDate(a.story.date, lang) : "";
+  const extraBrief = (aiBrief.data?.messages ?? []).filter((m) => typeof m === "string" && m.trim()).slice(0, 2).map((m) => "🤖 " + m.trim().split("{date}").join(when));
+
   const [shown, setShown] = useState(0);
   const [extra, setExtra] = useState<Msg[]>([]);
   const [q, setQ] = useState("");
   const [typing, setTyping] = useState(false);
+  const [warn, setWarn] = useState("");
   const end = useRef<HTMLDivElement>(null);
-  const bkey = ds ? `${ds.biz}|${ds.source}|${ds.cash}|${lang}` : "";
-  const [aiBrief, setAiBrief] = useState<string[] | null>(briefCache?.key === bkey ? briefCache.msgs : null);
-  const [briefLoading, setBriefLoading] = useState(briefCache?.key !== bkey);
-  useEffect(() => {
-    if (!a || !ds || briefCache?.key === bkey) return;
-    if (lang !== "ru") {
-      setBriefLoading(false);
-      return;
-    }
-    callAI<{ messages: string[] }>("brief", factsForLLM(a, ds)).then((r) => {
-      const msgs = Array.isArray(r?.messages) ? r.messages.slice(0, 2).map((m) => "🤖 " + m) : null;
-      briefCache = { key: bkey, msgs };
-      setAiBrief(msgs);
-      setBriefLoading(false);
-    });
-  }, [bkey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const brief = a && ds ? [...briefing(a, ds, lang, ai ?? undefined), ...(aiBrief ?? [])] : [];
+  const brief = a && ds ? [...briefing(a, ds, lang, ai), ...extraBrief] : [];
 
   useEffect(() => {
-    setShown(0);
-  }, [lang]);
+    setShown(0); // eslint-disable-line react-hooks/set-state-in-effect
+    setExtra([]);
+  }, [lang, ds?.source, ds?.biz]);
   useEffect(() => {
     if (shown >= brief.length) return;
-    const id = setTimeout(() => setShown((s) => s + 1), shown === 0 ? 300 : 450);
+    const id = setTimeout(() => setShown((s) => s + 1), shown === 0 ? 250 : 380);
     return () => clearTimeout(id);
   }, [shown, brief.length]);
   useEffect(() => {
@@ -61,62 +57,58 @@ export function Chat() {
   if (!a || !ds) return null;
 
   async function ask(text: string) {
-    if (!text.trim() || !a || !ds) return;
+    const clean = text.trim();
+    if (!clean || !a || !ds || typing) return;
+    if (clean.length > MAX_QUESTION) {
+      setWarn(t.tooLong);
+      return;
+    }
+    setWarn("");
     setQ("");
-    setExtra((m) => [...m, { from: "me", text, time: now() }]);
+    setExtra((m) => [...m, { from: "me", text: clean, time: now() }]);
     setTyping(true);
-    const local = answer(text, a, ds);
-    let reply = local;
-    let isAi = false;
-    try {
-      const r = await fetch("/api/advice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "ask", question: text, facts: { ...factsForLLM(a, ds), computedAnswer: local } }),
-      }).then((r) => r.json());
-      if (r.ai && r.answer) {
-        reply = r.answer;
-        isAi = true;
-      }
-    } catch {}
-    await new Promise((r) => setTimeout(r, 500));
+    const local = answer(clean, a, ds, lang);
+    const r = await callAI<{ answer: string }>("ask", { ...facts, computedAnswer: local }, clean, lang);
+    const reply = r?.answer?.trim() ? r.answer.trim() : local;
     setTyping(false);
-    setExtra((m) => [...m, { from: "bot", text: reply, time: now(), ai: isAi }]);
+    setExtra((m) => [...m, { from: "bot", text: reply, time: now(), ai: !!r?.answer }]);
   }
 
   const t0 = "08:00";
+  const done = shown >= brief.length;
   return (
-    <div className="-mx-4 -mt-4 flex flex-col min-h-[calc(100dvh-8.5rem)] bg-[#c7d8b8] dark:bg-[#0e1621] bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.25),transparent_40%)]">
+    <div className="-mx-4 -mt-4 flex flex-col min-h-[calc(100dvh-8.5rem)] bg-[#c7d8b8] dark:bg-[#0e1621]">
       <div className="flex items-center gap-3 bg-[#517da2] dark:bg-[#17212b] px-4 py-2 text-white">
-        <div className="size-10 rounded-full bg-emerald-500 grid place-items-center">
+        <div className="size-10 rounded-full bg-emerald-600 grid place-items-center" aria-hidden>
           <Bot className="size-5" />
         </div>
         <div>
           <div className="font-semibold leading-tight">KaltaAI</div>
-          <div className="text-xs opacity-80">{typing || shown < brief.length ? "печатает…" : "бот"}</div>
+          <div className="text-xs opacity-90">{typing || !done ? t.typing : t.bot}</div>
         </div>
         <div className="ml-auto">
-          <AiBadge ai={!!aiBrief} loading={briefLoading} />
+          <AiBadge ai={extraBrief.length > 0} loading={aiBrief.loading} />
         </div>
       </div>
-      <div className="flex-1 space-y-1.5 px-3 py-3">
-        <div className="mx-auto w-fit rounded-full bg-black/20 px-3 py-0.5 text-xs text-white">Сегодня</div>
+      <div className="flex-1 space-y-1.5 px-3 py-3" aria-live="polite">
+        <div className="mx-auto w-fit rounded-full bg-black/25 px-3 py-0.5 text-xs text-white">{t.today}</div>
         {brief.slice(0, shown).map((m, i) => (
           <Bubble key={i} m={{ from: "bot", text: m, time: t0 }} />
         ))}
-        {shown >= brief.length && extra.map((m, i) => <Bubble key={"e" + i} m={m} />)}
+        {done && extra.map((m, i) => <Bubble key={"e" + i} m={m} />)}
         {typing && <Bubble m={{ from: "bot", text: "…", time: "" }} />}
         <div ref={end} />
       </div>
-      {shown >= brief.length && (
+      {done && (
         <div className="sticky bottom-16 space-y-2 px-3 pb-3">
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {SUGGESTED.map((s) => (
-              <button key={s} onClick={() => ask(s)} className="shrink-0 rounded-full bg-white/90 dark:bg-[#182533] px-3 py-1.5 text-xs text-[#2b5278] dark:text-[#6ab2f2] shadow">
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar" role="list">
+            {t.suggestions.map((s) => (
+              <button key={s} role="listitem" onClick={() => ask(s)} disabled={typing} className="shrink-0 rounded-full bg-white dark:bg-[#182533] px-3 py-1.5 text-xs text-[#1f4a73] dark:text-[#8ec5ff] shadow disabled:opacity-60">
                 {s}
               </button>
             ))}
           </div>
+          {warn && <div className="rounded-md bg-white/90 px-2 py-1 text-xs text-red-700">{warn}</div>}
           <form
             className="flex gap-2"
             onSubmit={(e) => {
@@ -126,12 +118,14 @@ export function Chat() {
           >
             <input
               value={q}
+              maxLength={MAX_QUESTION + 50}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Спросите KaltaAI…"
-              className="flex-1 rounded-full bg-white dark:bg-[#17212b] px-4 py-2.5 text-sm text-black dark:text-white outline-none"
+              placeholder={t.placeholder}
+              aria-label={t.placeholder}
+              className="flex-1 min-w-0 rounded-full bg-white dark:bg-[#17212b] px-4 py-2.5 text-sm text-black dark:text-white outline-none"
             />
-            <button className="size-10 rounded-full bg-[#5288c1] text-white grid place-items-center" aria-label="Отправить">
-              <Send className="size-4" />
+            <button className="size-10 shrink-0 rounded-full bg-[#2f6ea5] text-white grid place-items-center disabled:opacity-60" aria-label={t.send} disabled={typing}>
+              <Send className="size-4" aria-hidden />
             </button>
           </form>
         </div>
@@ -145,7 +139,7 @@ function Bubble({ m }: { m: Msg }) {
   return (
     <div className={`flex ${me ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-[15px] leading-snug shadow-sm whitespace-pre-line animate-in fade-in slide-in-from-bottom-1 ${
+        className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-[15px] leading-snug shadow-sm whitespace-pre-line break-words ${
           me ? "rounded-br-sm bg-[#effdde] dark:bg-[#2b5278] text-black dark:text-white" : "rounded-bl-sm bg-white dark:bg-[#182533] text-black dark:text-white"
         }`}
       >
@@ -155,7 +149,7 @@ function Bubble({ m }: { m: Msg }) {
             <AiBadge ai={m.ai} />
           </span>
         )}
-        {m.time && <span className="ml-2 align-bottom text-[10px] text-black/40 dark:text-white/40">{m.time}</span>}
+        {m.time && <span className="ml-2 align-bottom text-[10px] text-black/55 dark:text-white/55">{m.time}</span>}
       </div>
     </div>
   );

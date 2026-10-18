@@ -1,36 +1,37 @@
 import { analyze, money, type Analysis } from "./analytics";
-import { addDays, daysBetween, fmtDate, human, humanWd, parseDate, WD_RU_FULL } from "./dates";
+import { addDays, daysBetween, dueDate, fmtDate, human, humanWd, longDate, parseDate, weekdayFull, WD_RU_ACC } from "./dates";
+import { dn } from "./demo";
+import { actionText, cap, q as quote, storyText, T, type Lang } from "./texts";
 import type { Dataset } from "./types";
 import { NO_WHATIF } from "./types";
 
-/** «Спроси финдиректора»: ответы строятся по посчитанным цифрам (без LLM). */
-
-export const SUGGESTED = [
-  "Почему упала выручка во вторник?",
-  "Что будет, если не заплачу поставщику до пятницы?",
-  "Когда закончатся деньги?",
-  "Какой товар самый выгодный?",
-  "Что залежалось на складе?",
-];
+/** «Спроси KaltaAI»: ответы строятся кодом по посчитанным цифрам. LLM потом только пересказывает их. */
 
 const WD_RE: [RegExp, number][] = [
   [/понедельн|дүйсенбі/i, 1],
   [/вторн|сейсенбі/i, 2],
-  [/сред|сәрсенбі/i, 3],
+  [/сред[ау]|сәрсенбі/i, 3],
   [/четверг|бейсенбі/i, 4],
   [/пятниц|жұма/i, 5],
   [/суббот|сенбі/i, 6],
   [/воскрес|жексенбі/i, 0],
 ];
 
-export function answer(q: string, a: Analysis, ds: Dataset): string {
-  const s = q.toLowerCase();
-  const wdHit = WD_RE.find(([re]) => re.test(s))?.[1];
+export const MAX_QUESTION = 300;
 
-  if (/не заплач|не плат|перенес|отложи|задерж|кейін/.test(s)) {
+export function answer(q: string, a: Analysis, ds: Dataset, lang: Lang = "ru"): string {
+  const s = q.toLowerCase();
+  const kz = lang === "kz";
+  const t = T[lang];
+  const st = storyText(a.story, a, lang);
+  const wdHit = WD_RE.find(([re]) => re.test(s))?.[1];
+  const top = a.actions.slice(0, 3);
+
+  // 1. перенос платежа поставщику
+  if (/не заплач|не плат|перенес|отложить плат|кейінге қалдыр|төлемесем|төлемеу/.test(s) && !/налог|салық/.test(s)) {
     const lp = a.largestPayment;
-    if (!lp) return "В ближайшие 14 дней крупных платежей поставщикам в календаре нет — переносить нечего.";
-    let target = wdHit ?? 5;
+    if (!lp) return kz ? "Алдағы 14 күнде жеткізушіге ірі төлем жоқ — кейінге қалдыратын ештеңе жоқ." : "В ближайшие 14 дней крупных платежей поставщикам нет — переносить нечего.";
+    const target = wdHit ?? 5;
     let d = parseDate(lp.due);
     let k = 0;
     while (d.getDay() !== target && k < 7) {
@@ -39,77 +40,96 @@ export function answer(q: string, a: Analysis, ds: Dataset): string {
     }
     if (k === 0) k = 7;
     const after = analyze(ds, { ...NO_WHATIF, delayDays: k });
-    const before = a.gap;
-    const g = after.gap;
+    const name = dn(lp.name, lang);
+    if (kz)
+      return [
+        `${quote(name)} төлемі ${money(lp.amount)}, жоспар бойынша ${humanWd(lp.due, "kz")}. Оны ${humanWd(fmtDate(d), "kz")} дейін (+${k} күн) кейінге қалдырсаңыз:`,
+        `• қазір бүгін бос ақша ${money(a.story.free)}`,
+        `• кейін бос ақша ${money(after.story.free)}${after.story.kind === "ok" ? " — 14 күнде жетіспеушілік жоқ ✅" : ""}`,
+        "Тәуекел: жеткізуші келесі жүкті ұстап қалуы мүмкін — алдын ала жазбаша келісіңіз.",
+      ].join("\n");
     return [
-      `Платёж «${lp.name}» на ${money(lp.amount)} по плану ${humanWd(lp.due)}. Если перенести его до ${humanWd(fmtDate(d))} (+${k} дн.):`,
-      before ? `• сейчас разрыв ${human(before.date)} −${money(before.shortfall)}` : "• сейчас разрыва нет",
-      g ? `• после переноса разрыв ${human(g.date)} −${money(g.shortfall)}` : "• после переноса разрыва в 14 днях нет ✅",
-      `Риск: поставщик может придержать следующую отгрузку — договоритесь заранее и письменно.`,
+      `Платёж ${quote(name)} на ${money(lp.amount)} по плану ${humanWd(lp.due)}. Если перенести его до ${humanWd(fmtDate(d))} (+${k} дн.):`,
+      `• сейчас свободно сегодня ${money(a.story.free)}`,
+      `• после переноса ${money(after.story.free)}${after.story.kind === "ok" ? " — нехватки в 14 днях нет ✅" : ""}`,
+      "Риск: поставщик может придержать следующую отгрузку — договоритесь заранее и письменно.",
     ].join("\n");
   }
 
-  if (/почему|упал|просел|меньше|неге/.test(s) && (wdHit != null || /прибыл|выручк|продаж/.test(s))) {
-    const wd = wdHit ?? a.weak?.wd;
-    if (wd == null) return `За последние 4 недели выручка по дням недели ровная — сильных провалов нет. Средняя выручка в день: ${money(a.sales30 / 30)}.`;
+  // 2. налоги
+  if (/налог|салық|ндс|ққс|910/.test(s)) {
+    const tx = a.tax;
+    const days = daysBetween(a.today, tx.dueDate);
+    const soc = tx.socialNext ? (kz ? ` ЖК әлеуметтік төлемдері — ${money(tx.socialAmount)}, ${dueDate(tx.socialNext, "kz")} дейін.` : ` Соцплатежи ИП — ${money(tx.socialAmount)} до ${human(tx.socialNext)}.`) : "";
+    if (kz) return `Қазір салыққа ${money(tx.reserve)} бөліп қойыңыз. ${dueDate(tx.dueDate, "kz")} дейін (${days} күннен кейін) шамамен ${money(tx.reserveAtDue)} төлеу керек болады.${soc} Бұл сома резервке кіреді — оны жұмсамаңыз. Есеп шамамен жасалған, салық кеңесі емес.`;
+    return `Отложите на налог сейчас ${money(tx.reserve)}. До ${longDate(tx.dueDate)} (через ${days} дн.) нужно будет заплатить ≈ ${money(tx.reserveAtDue)}.${soc} Эти деньги входят в резерв — их нельзя тратить. Расчёт ориентировочный, не налоговая консультация.`;
+  }
+
+  // 3. сколько можно забрать
+  if (/забрать|вывести|снять|потратить|свободн|можно взять|алуға|бос ақша|қанша ақша ал|жұмсауға/.test(s)) {
+    if (a.story.free >= 0)
+      return kz
+        ? `Бүгін ${money(a.story.free)} дейін алуға болады: 14 күндік барлық төлем мен резерв (салық + 7 күндік шығын) жабылған күйде қалады. Ең қиын күн — ${longDate(a.story.critical, "kz")}.`
+        : `Сегодня можно забрать до ${money(a.story.free)}: все платежи на 14 дней и резерв (налог + 7 дней расходов) останутся покрыты. Самый трудный день — ${longDate(a.story.critical)}.`;
+    const first = top[0];
+    const fix = first ? (kz ? ` Алдымен жетіспеушілікті жабыңыз: ${actionText(first, "kz").title.toLowerCase()} (+${money(first.effect)}).` : ` Сначала закройте нехватку: ${actionText(first, "ru").title.toLowerCase()} (+${money(first.effect)}).`) : "";
+    return kz ? `Бүгін ақша алмаңыз: бос ақша ${money(a.story.free)}. ${st.sentence}${fix}` : `Сегодня забирать деньги нельзя: свободно ${money(a.story.free)}. ${st.sentence}${fix}`;
+  }
+
+  // 4. выручка в конкретный день недели
+  if (wdHit != null && /выручк|продаж|прибыл|упал|просел|түсім|сатылым|пайда|төмен/.test(s)) {
+    const wd = wdHit;
     const avg = a.wdAvg[wd];
     const others = a.wdAvg.filter((_, i) => i !== wd && a.wdAvg[i] > 0).sort((x, y) => x - y);
     const med = a.weak?.wd === wd ? a.weak.median : others[Math.floor(others.length / 2)] ?? avg;
     const drop = a.weak?.wd === wd ? a.weak.dropPct : med > 0 ? 1 - avg / med : 0;
-    if (drop < 0.08) return `${cap(WD_RU_FULL[wd])} — обычный день: ${money(avg)} против ${money(med)} в среднем. Провала нет.`;
-    return [
-      `${wd === 2 ? "Во" : "В"} ${acc(wd)} выручка в среднем ${money(avg)} — на ${Math.round(drop * 100)}% ниже обычного дня (${money(med)}).`,
-      `Это ≈ ${money((med - avg) * 4.3 * a.margin)} недополученной прибыли в месяц.`,
-      `Что сделать: акция только в этот день («2+1», скидка до 12:00, комбо) и пост в WhatsApp накануне вечером.`,
-    ].join("\n");
+    if (drop < 0.08) return kz ? `${cap(weekdayFull(wd, "kz"))} — әдеттегі күн: ${money(avg)}, орташа ${money(med)}. Құлдырау жоқ.` : `${cap(weekdayFull(wd))} — обычный день: ${money(avg)} против ${money(med)} в среднем. Провала нет.`;
+    const loss = money((med - avg) * 4.3 * a.margin);
+    return kz
+      ? `${cap(weekdayFull(wd, "kz"))} күнгі түсім орта есеппен ${money(avg)} — әдеттегі күннен ${Math.round(drop * 100)}% төмен (${money(med)}). Бұл айына ≈ ${loss} алынбаған пайда. Тек осы күні акция жасаңыз («2+1», түске дейін жеңілдік) және алдыңғы кеші WhatsApp-қа жазыңыз.`
+      : `${wd === 2 ? "Во" : "В"} ${WD_RU_ACC[wd]} выручка в среднем ${money(avg)} — на ${Math.round(drop * 100)}% ниже обычного дня (${money(med)}). Это ≈ ${loss} недополученной прибыли в месяц. Сделайте акцию только в этот день («2+1», скидка до 12:00) и напишите клиентам в WhatsApp накануне вечером.`;
   }
 
-  if (/когда|законч|кончат|разрыв|хватит|жетпе/.test(s)) {
-    if (!a.gap) return `В ближайшие 14 дней кассового разрыва нет. Через 14 дней в кассе будет ≈ ${money(a.forecast.base[13].balance)}.`;
-    const ev = a.forecast.base[a.gap.dayIndex].events;
-    return [
-      `Деньги закончатся ${humanWd(a.gap.date)} (через ${daysBetween(ds.today, a.gap.date)} дн.). Максимальная нехватка — ${money(a.gap.shortfall)}.`,
-      ev.length ? `Причина: ${ev.map((e) => `${e.name} — ${money(e.amount)}`).join(", ")}.` : "",
-      a.prevented > 0 ? `Распродажа залежавшегося и перенос платежа на неделю закрывают ${money(a.prevented)}.` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+  // 5. почему не хватает
+  if (/почему|не хватает|не хватит|нехват|откуда|неге|жетпей|жетіспе/.test(s)) {
+    if (a.story.kind === "ok") return kz ? `Ақша жетеді: бүгін бос ${money(a.story.free)}. ${st.reserveLine}` : `Денег хватает: свободно сегодня ${money(a.story.free)}. ${st.reserveLine}`;
+    const pays = [...a.story.breakdown.payments].sort((x, y) => y.amount - x.amount).slice(0, 3);
+    const list = pays.map((p) => `${dn(p.name, lang)} ${money(p.amount)}`).join(", ");
+    return kz
+      ? `${st.sentence} ${longDate(a.story.critical, "kz")} дейін шамамен ${money(a.story.breakdown.inflow)} түсім түседі, бірақ төлемдер кетеді: ${list}. Оған қоса ${money(a.reserve)} резервті сақтау керек: салық ${money(a.taxReserve)} және 7 күндік шығын ${money(a.safety)}.`
+      : `${st.sentence} До ${longDate(a.story.critical)} придёт ≈ ${money(a.story.breakdown.inflow)} выручки, но уйдут платежи: ${list}. И нужно сохранить резерв ${money(a.reserve)}: налог ${money(a.taxReserve)} и 7 дней расходов ${money(a.safety)}.`;
   }
 
-  if (/выгодн|прибыльн|маржин|лучш|тиімді/.test(s)) {
-    const top = a.items.filter((i) => i.profit != null).sort((x, y) => y.profit! - x.profit!).slice(0, 3);
-    if (!top.length) return "Чтобы посчитать выгоду, нужны и продажи, и закупки по одним товарам.";
-    const low = a.items.filter((i) => i.marginPct != null && i.revenue > 0).sort((x, y) => x.marginPct! - y.marginPct!)[0];
-    return [
-      `Больше всего прибыли за период:`,
-      ...top.map((i, k) => `${k + 1}) ${i.name} — ${money(i.profit!)} (маржа ${Math.round(i.marginPct! * 100)}%)`),
-      low ? `Самая низкая маржа: ${low.name} — ${Math.round(low.marginPct! * 100)}%.` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+  // 6. что сделать на неделе
+  if (/недел|сделать|делать|начать|план|апта|істеу|бастау/.test(s)) {
+    if (!top.length) return kz ? "Қазір шұғыл әрекет керек емес — бәрі қалыпты." : "Срочных действий нет — всё в порядке.";
+    const lines = top.map((x, i) => `${i + 1}) ${actionText(x, lang).title} — +${money(x.effect)}, ${kz ? "мерзімі" : "срок"} ${x.deadlineDays} ${t.days}`);
+    const tail = a.prevented > 0 ? (kz ? `1–2 қадам ${money(a.prevented)} жетіспеушілікті жабады.` : `Шаги 1–2 закрывают нехватку ${money(a.prevented)}.`) : "";
+    return [kz ? "Осы аптада:" : "На этой неделе:", ...lines, tail].filter(Boolean).join("\n");
   }
 
-  if (/залеж|остат|склад|не прода|қалдық/.test(s)) {
-    if (!a.dead.length) return "Залежавшегося товара (без продаж 30+ дней) нет.";
-    return [`Без продаж 30+ дней лежит товара на ${money(a.frozenTotal)}:`, ...a.dead.map((d) => `• ${d.name}: ${d.stockQty} шт, ${money(d.frozen)}, ${d.daysNoSale} дн. без продаж`), `Совет: скидка 30% вернёт деньги в оборот за неделю.`].join("\n");
+  // 7. товар без движения
+  if (/лежит|без движ|залеж|остат|склад|не прода|қозғалыссыз|жатыр|қалдық|сатылмай/.test(s)) {
+    if (!a.dead.length) return a.hasStock ? (kz ? "30+ күн сатылмаған тауар жоқ." : "Товара без продаж 30+ дней нет.") : kz ? "Файлда сатып алу жоқ — қалдықты есептей алмаймыз." : "В файле нет закупок — остатки посчитать нельзя.";
+    const lines = a.dead.map((d) => (kz ? `• ${dn(d.name, "kz")}: ${d.stockQty} дана, ${money(d.frozen)}, ${d.daysNoSale} күн сатылмаған` : `• ${d.name}: ${d.stockQty} шт, ${money(d.frozen)}, ${d.daysNoSale} дн. без продаж`));
+    return kz
+      ? [`30+ күн сатылмаған тауарда ${money(a.frozenTotal)} қатып тұр:`, ...lines, "Кеңес: 30% жеңілдік ақшаны бір аптада айналымға қайтарады."].join("\n")
+      : [`Без продаж 30+ дней лежит товара на ${money(a.frozenTotal)}:`, ...lines, "Совет: скидка 30% вернёт деньги в оборот за неделю."].join("\n");
   }
 
-  if (/постав|цен|подорож|закуп/.test(s)) {
-    if (!a.rises.length) return "Заметного роста закупочных цен за последний месяц нет.";
-    const r = a.rises[0];
-    return `${r.supplier} поднял цены в среднем на ${Math.round(r.pct * 100)}% (${r.items.map((i) => i.name).join(", ")}). Переплата ≈ ${money(r.overpayMonth)} в месяц. Попросите старую цену или скидку за объём, параллельно запросите прайс у 2 конкурентов.`;
+  // 8. самый выгодный товар
+  if (/выгодн|прибыльн|маржин|лучш|тиімді|пайдалы/.test(s)) {
+    const best = a.items.filter((i) => i.profit != null).sort((x, y) => y.profit! - x.profit!).slice(0, 3);
+    if (!best.length) return kz ? "Пайданы есептеу үшін бір тауардың сатылымы да, сатып алуы да керек." : "Чтобы посчитать выгоду, нужны и продажи, и закупки по одним товарам.";
+    return [kz ? "Кезеңдегі ең көп пайда:" : "Больше всего прибыли за период:", ...best.map((i, k) => `${k + 1}) ${dn(i.name, lang)} — ${money(i.profit!)} (${kz ? "маржа" : "маржа"} ${Math.round(i.marginPct! * 100)}%)`)].join("\n");
   }
 
-  if (/сколько|заработ|прибыл|выручк|табыс/.test(s)) {
-    return `За последние 30 дней: выручка ${money(a.sales30)}, закупки ${money(a.purchases30)}, прочие расходы ${money(a.expenses30)}. Прибыль ≈ ${money(a.profit30)}.`;
+  // 9. сколько заработал
+  if (/сколько|заработ|прибыл|выручк|табыс|пайда|түсім/.test(s)) {
+    return kz
+      ? `Соңғы 30 күнде (бағалау): түсім ${money(a.sales30)}, сатып алу ${money(a.purchases30)}, басқа шығыс ${money(a.expenses30)}. Пайда ≈ ${money(a.profit30)}.`
+      : `За последние 30 дней (оценка): выручка ${money(a.sales30)}, закупки ${money(a.purchases30)}, прочие расходы ${money(a.expenses30)}. Прибыль ≈ ${money(a.profit30)}.`;
   }
 
-  return `Я отвечаю по вашим цифрам. Сейчас главное: ${a.gap ? `разрыв ${human(a.gap.date)} на ${money(a.gap.shortfall)}` : "разрыва нет"}, заморожено ${money(a.frozenTotal)}. Спросите, например: «${SUGGESTED[1]}»`;
-}
-
-function cap(s: string) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-function acc(wd: number) {
-  return ["воскресенье", "понедельник", "вторник", "среду", "четверг", "пятницу", "субботу"][wd];
+  return kz ? `Мен сіздің сандарыңыз бойынша жауап беремін. Қазір ең бастысы: бүгін бос ақша ${money(a.story.free)}. ${st.sentence} Мысалы, сұраңыз: «${t.suggestions[1]}»` : `Я отвечаю по вашим цифрам. Сейчас главное: свободно сегодня ${money(a.story.free)}. ${st.sentence} Спросите, например: «${t.suggestions[1]}»`;
 }

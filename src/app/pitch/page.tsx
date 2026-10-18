@@ -1,54 +1,78 @@
-"use client";
+import type { Metadata } from "next";
+import { Play, Wallet, PiggyBank, ShieldCheck, Sparkles, Send, Smartphone } from "lucide-react";
+import { analyze, demoDataset, money } from "@/lib/analytics";
+import { DEMO_GAP_DAY } from "@/lib/demo";
+import { FLAGS, SITE_URL, TELEGRAM_BOT } from "@/lib/flags";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Play, TriangleAlert, PiggyBank, ShieldCheck, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useApp } from "@/lib/store";
-import { analyze, demoDataset, money, type Analysis } from "@/lib/analytics";
-import { generateDemo } from "@/lib/demo";
-import { human } from "@/lib/dates";
+export const metadata: Metadata = {
+  title: "KaltaAI — питч для жюри",
+  description: "Демо за 2 минуты: свободные деньги сегодня, нехватка через 9 дней, налоговый конверт и 3 действия в ₸.",
+};
+
+// Цифры демо не зависят от даты (см. demo.ts), поэтому считаем их на сервере на фиксированную дату.
+const a = analyze(demoDataset("shop", "2026-10-18"));
 
 export default function Pitch() {
-  const { loadDemo } = useApp();
-  const router = useRouter();
-  const [a, setA] = useState<Analysis | null>(null);
-  useEffect(() => {
-    setA(analyze(demoDataset("shop", generateDemo))); // eslint-disable-line react-hooks/set-state-in-effect
-  }, []);
-  const start = () => {
-    loadDemo("shop");
-    router.push("/?tour=1#home");
-  };
+  const tg = `https://t.me/${TELEGRAM_BOT}?start=pitch`;
   return (
     <main className="min-h-dvh bg-gradient-to-b from-emerald-950 via-zinc-950 to-black text-white">
       <div className="mx-auto max-w-3xl px-5 py-10 space-y-8">
         <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs">
-          <Sparkles className="size-3.5" /> Zhambyl Hub · AI for SME & Local Business
+          <Sparkles className="size-3.5" aria-hidden /> Zhambyl Hub · AI for SME &amp; Local Business
         </div>
         <div className="space-y-3">
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">KaltaAI — ИИ-финдиректор для бизнеса Тараза</h1>
-          <p className="text-lg text-white/70">
-            Владелец магазина ведёт учёт в тетради и Excel. Он видит, сколько продал вчера, — но не видит, что через 9 дней не хватит денег на оплату поставщику.
+          <p className="text-lg text-white/80">
+            Владелец магазина ведёт учёт в тетради и Excel. Он видит, сколько продал вчера, — но не видит, что через {DEMO_GAP_DAY} дней после оплаты поставщику придётся тратить деньги, отложенные на налог.
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Stat icon={TriangleAlert} color="text-red-400" label="Кассовый разрыв найден заранее" value={a?.gap ? money(a.gap.shortfall) : "…"} sub={a?.gap ? `${human(a.gap.date)}, за ${a.gap.dayIndex} дн. до` : ""} />
-          <Stat icon={PiggyBank} color="text-amber-300" label="Найдено денег" value={a ? money(a.found.total) : "…"} sub="заморожено + слабые дни + переплата" />
-          <Stat icon={ShieldCheck} color="text-emerald-400" label="Предотвращённый разрыв" value={a ? money(a.prevented) : "…"} sub="2 действия, 1 звонок" />
+          <Stat icon={Wallet} color="text-red-300" label="Свободно сегодня" value={money(a.story.free)} sub={`через ${DEMO_GAP_DAY} дней деньги уйдут в налоговый резерв`} />
+          <Stat icon={PiggyBank} color="text-amber-300" label="Мы нашли" value={money(a.found.total)} sub="заморожено + слабые дни + переплата поставщику" />
+          <Stat icon={ShieldCheck} color="text-emerald-300" label="Предотвращённый разрыв" value={money(a.prevented)} sub="1 звонок поставщику" />
         </div>
-        <p className="text-xs text-white/50">Цифры — на демо-данных магазина (сгенерированы с заложенными проблемами, не реальный бизнес).</p>
+        <p className="text-xs text-white/60">Цифры — на демо-данных магазина (сгенерированы с заложенными проблемами, не реальный бизнес). Одинаковые в любой день: нехватка всегда через {DEMO_GAP_DAY} дней.</p>
 
-        <Button size="lg" onClick={start} className="h-14 w-full sm:w-auto px-8 text-base bg-emerald-500 hover:bg-emerald-400 text-black">
-          <Play className="size-5" /> Пройти демо за 2 минуты
-        </Button>
+        <a href="/?demo=shop&tour=1#home" className="inline-flex h-14 w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-emerald-400 px-8 text-base font-semibold text-black hover:bg-emerald-300">
+          <Play className="size-5" aria-hidden /> Пройти демо за 2 минуты
+        </a>
 
-        <div className="grid gap-4 sm:grid-cols-2 text-sm text-white/80">
-          <Block t="Как работает" items={["Загрузка CSV / Excel / выгрузки Kaspi — колонки угадываются", "Код считает прогноз на 14 дней, утечки, ABC, маржу", "ИИ (NVIDIA NIM) только пишет тексты по готовым цифрам", "Данные остаются в браузере"]} />
-          <Block t="Почему не блокнот" items={["Будущие платежи + средние продажи по дням недели = дата разрыва", "Каждый совет со суммой в ₸ и сроком", "Трекинг: сколько реально сэкономлено", "Казахский язык, тексты акций для WhatsApp"]} />
+        <div className="grid gap-4 sm:grid-cols-2 text-sm text-white/85">
+          <Block
+            t="Как работает"
+            items={["Загрузка CSV / Excel / выгрузки Kaspi Pay — колонки угадываются (RU, KZ, EN)", "Код считает свободные деньги, прогноз на 14 дней, налоговый конверт, утечки", "ИИ (NVIDIA NIM) только пишет тексты по готовым цифрам — выдуманные числа отсекаются", "Данные остаются в браузере"]}
+          />
+          <Block t="Почему не блокнот" items={["Будущие платежи + налог + запас = сколько можно тратить сегодня", "Каждый совет со суммой в ₸ и сроком", "Трекинг: сколько реально сэкономлено", "Полностью на казахском и русском, посты акций для WhatsApp"]} />
         </div>
-        <div className="text-xs text-white/40">Дальше: интеграция с Kaspi Pay и 1С, отзывы 2ГИС через API, пилоты с 5 точками в Таразе.</div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {FLAGS.telegram && (
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/qr-telegram.svg" alt={`QR-код: Telegram-бот @${TELEGRAM_BOT}`} width={112} height={112} className="size-28 rounded-lg bg-white p-1.5" />
+              <div className="space-y-2 text-sm">
+                <div className="font-semibold">Брифинг в Telegram</div>
+                <p className="text-white/75">Сканируйте — бот пришлёт утренний брифинг по демо.</p>
+                <a href={tg} className="inline-flex items-center gap-1.5 rounded-md bg-[#2AABEE] px-3 py-1.5 font-medium text-white" target="_blank" rel="noreferrer">
+                  <Send className="size-4" aria-hidden /> @{TELEGRAM_BOT}
+                </a>
+              </div>
+            </div>
+          )}
+          <div className="rounded-2xl bg-white/5 border border-white/10 p-4 flex items-center gap-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/qr-site.svg" alt="QR-код: kaltaai.vercel.app" width={112} height={112} className="size-28 rounded-lg bg-white p-1.5" />
+            <div className="space-y-2 text-sm">
+              <div className="font-semibold">Открыть на телефоне</div>
+              <p className="text-white/75">{SITE_URL.replace("https://", "")}</p>
+              <span className="inline-flex items-center gap-1.5 text-white/70">
+                <Smartphone className="size-4" aria-hidden /> работает без установки
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="text-xs text-white/55">Дальше: интеграция с Kaspi Pay и 1С, отзывы 2ГИС через API, пилоты с 5 точками в Таразе.</div>
       </div>
     </main>
   );
@@ -57,10 +81,10 @@ export default function Pitch() {
 function Stat({ icon: Icon, color, label, value, sub }: { icon: React.ElementType; color: string; label: string; value: string; sub: string }) {
   return (
     <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
-      <Icon className={`size-5 ${color}`} />
-      <div className="mt-2 text-xs text-white/60">{label}</div>
+      <Icon className={`size-5 ${color}`} aria-hidden />
+      <div className="mt-2 text-xs text-white/70">{label}</div>
       <div className="text-2xl font-bold tabular-nums">{value}</div>
-      <div className="text-xs text-white/50">{sub}</div>
+      <div className="text-xs text-white/65">{sub}</div>
     </div>
   );
 }
@@ -68,7 +92,7 @@ function Stat({ icon: Icon, color, label, value, sub }: { icon: React.ElementTyp
 function Block({ t, items }: { t: string; items: string[] }) {
   return (
     <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-2">
-      <div className="font-semibold text-white">{t}</div>
+      <h2 className="font-semibold text-white">{t}</h2>
       <ul className="space-y-1 list-disc pl-4">
         {items.map((i) => (
           <li key={i}>{i}</li>

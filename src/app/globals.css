@@ -136,3 +136,12 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 .tour-hl { outline: 3px solid #10b981; outline-offset: 4px; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0,0,0,.35); position: relative; z-index: 20; transition: box-shadow .3s; }
+
+/* Мягкая загрузка: если в браузере уже есть данные, лендинг не мигает перед дашбордом.
+   Через 5 с лендинг всё равно станет видимым — на случай, если JS не загрузился. */
+.kalta-bootmsg { display: none; }
+.kalta-boot .kalta-bootmsg { display: grid; }
+.kalta-boot .kalta-landing { visibility: hidden; height: 0; overflow: hidden; animation: kalta-reveal 0s linear 5s forwards; }
+@keyframes kalta-reveal { to { visibility: visible; height: auto; overflow: visible; } }
+.kalta-boot .kalta-bootmsg { animation: kalta-hide 0s linear 5s forwards; }
+@keyframes kalta-hide { to { display: none; visibility: hidden; height: 0; } }

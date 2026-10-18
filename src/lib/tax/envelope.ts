@@ -7,6 +7,8 @@ export interface TaxEnvelope {
   settings: TaxSettings;
   rate: number;
   periodLabel: string;
+  /** номер полугодия/квартала и год — для перевода подписи */
+  period: { kind: "half" | "quarter"; no: number; year: number };
   periodStart: string;
   dueDate: string;
   daysToDue: number;
@@ -37,6 +39,7 @@ export function taxEnvelope(ds: Dataset, avgDaily: number, purchaseRatio: number
   const isOur = st.mode === "our";
 
   let start: Date, end: Date, due: Date, label: string;
+  let period: TaxEnvelope["period"];
   if (isOur) {
     // НДС — поквартально, до 25 числа второго месяца после квартала
     const q = Math.floor(m / 3);
@@ -44,12 +47,14 @@ export function taxEnvelope(ds: Dataset, avgDaily: number, purchaseRatio: number
     end = new Date(y, q * 3 + 3, 1);
     due = new Date(y, q * 3 + 4, 25);
     label = `${q + 1}-й квартал ${y}`;
+    period = { kind: "quarter", no: q + 1, year: y };
   } else {
     const h2 = m >= 6;
     start = new Date(y, h2 ? 6 : 0, 1);
     end = new Date(h2 ? y + 1 : y, h2 ? 0 : 6, 1);
-    due = new Date(h2 ? y + 1 : y, h2 ? 1 : 7, st.socialDueDay ? 25 : 25);
+    due = new Date(h2 ? y + 1 : y, h2 ? 1 : 7, 25);
     label = `${h2 ? "2-е" : "1-е"} полугодие ${y}`;
+    period = { kind: "half", no: h2 ? 2 : 1, year: y };
   }
   const s = fmtDate(start);
   const known = salesBetween(ds, s > dataFrom ? s : dataFrom, ds.today);
@@ -90,6 +95,7 @@ export function taxEnvelope(ds: Dataset, avgDaily: number, purchaseRatio: number
     settings: st,
     rate,
     periodLabel: label,
+    period,
     periodStart: s,
     dueDate: fmtDate(due),
     daysToDue: daysBetween(ds.today, fmtDate(due)),

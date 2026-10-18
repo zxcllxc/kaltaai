@@ -1,15 +1,15 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Biz, CalendarItem, Dataset, Row, WhatIf } from "./types";
 import { NO_WHATIF } from "./types";
 import { analyze, demoDataset, type Analysis } from "./analytics";
-import { generateDemo } from "./demo";
 import { addDays, fmtDate, parseDate } from "./dates";
 import { T, type Dict, type Lang } from "./texts";
 import type { TaxSettings } from "./tax/kz2026";
 
 const KEY = "findir:v1";
+const BIZ_IDS: Biz[] = ["shop", "cafe", "salon", "auto"];
 
 interface Saved {
   ds: Dataset | null;
@@ -28,6 +28,7 @@ interface Ctx extends Saved {
   setBiz: (b: Biz) => void;
   loadDemo: (b: Biz) => void;
   loadRows: (rows: Row[], source: string, biz: Biz) => void;
+  loadDataset: (ds: Dataset) => void;
   setCash: (n: number) => void;
   setCalendar: (c: CalendarItem[]) => void;
   setTax: (t: Partial<TaxSettings>) => void;
@@ -44,7 +45,7 @@ export function useApp() {
   return c;
 }
 
-/** Ищем регулярные платежи в загруженных данных (аренда, зарплата, налоги). */
+/** Ищем регулярные платежи в загруженных данных (аренда, зарплата, коммуналка). */
 function detectCalendar(rows: Row[]): CalendarItem[] {
   const byCat = new Map<string, Row[]>();
   for (const r of rows) if (r.type === "expense" && r.category) byCat.set(r.category, [...(byCat.get(r.category) ?? []), r]);
@@ -57,33 +58,87 @@ function detectCalendar(rows: Row[]): CalendarItem[] {
     });
 }
 
+/** Демо-данные не храним целиком: при загрузке пересоздаём на сегодняшнюю дату (цифры от этого не меняются). */
+function toStorage(s: Saved) {
+  if (s.ds?.isDemo) return { ...s, ds: { isDemo: true, biz: s.ds.biz, tax: s.ds.tax } };
+  return s;
+}
+
+function readStorage(): Saved | null {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Saved;
+    if (v.ds?.isDemo) v.ds = { ...demoDataset(v.ds.biz), tax: v.ds.tax };
+    if (v.ds && (!Array.isArray(v.ds.rows) || !v.ds.today)) v.ds = null;
+    if (v.lang !== "ru" && v.lang !== "kz") v.lang = "ru";
+    if (!BIZ_IDS.includes(v.biz)) v.biz = "shop";
+    v.done ??= {};
+    return v;
+  } catch {
+    return null;
+  }
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [s, setS] = useState<Saved>({ ds: null, lang: "ru", done: {}, biz: "shop" });
   const [wi, setWi] = useState<WhatIf>(NO_WHATIF);
   const [ready, setReady] = useState(false);
+  const skipSave = useRef(true);
 
   useEffect(() => {
+    let v = readStorage();
+    // ссылка вида /?demo=shop (кнопка до загрузки JS, бот, QR) — сразу открываем демо
     try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) {
-        const v = JSON.parse(raw) as Saved;
-        // демо-данные всегда «свежие» относительно сегодняшней даты
-        if (v.ds?.isDemo) v.ds = { ...demoDataset(v.ds.biz, generateDemo), tax: v.ds.tax };
-        setS(v);
+      const u = new URL(window.location.href);
+      const d = u.searchParams.get("demo") as Biz | null;
+      const lang = u.searchParams.get("lang");
+      if (d && BIZ_IDS.includes(d)) {
+        v = { ...(v ?? { done: {}, lang: "ru", biz: d, ds: null }), biz: d, done: {}, ds: demoDataset(d) };
+        u.searchParams.delete("demo");
       }
+      if (lang === "kz" || lang === "ru") {
+        v = { ...(v ?? { done: {}, biz: "shop", ds: null, lang }), lang };
+        u.searchParams.delete("lang");
+      }
+      if (u.toString() !== window.location.href) window.history.replaceState(window.history.state, "", u.pathname + u.search + u.hash);
     } catch {}
+    if (v) setS(v); // eslint-disable-line react-hooks/set-state-in-effect
     setReady(true);
   }, []);
 
+  // снимаем «загрузочный» класс только после того, как применились сохранённые язык и данные (без мигания)
   useEffect(() => {
     if (!ready) return;
+    const el = document.documentElement;
+    el.classList.remove("kalta-boot");
+    el.dataset.ready = "1";
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (skipSave.current) {
+      skipSave.current = false;
+      if (!s.ds) return;
+    }
     try {
-      localStorage.setItem(KEY, JSON.stringify(s));
+      localStorage.setItem(KEY, JSON.stringify(toStorage(s)));
     } catch {}
   }, [s, ready]);
 
+  useEffect(() => {
+    try {
+      document.documentElement.lang = s.lang === "kz" ? "kk" : "ru";
+    } catch {}
+  }, [s.lang]);
+
   const base = useMemo(() => (s.ds ? analyze(s.ds) : null), [s.ds]);
-  const a = useMemo(() => (s.ds ? analyze(s.ds, wi) : null), [s.ds, wi]);
+  const a = useMemo(() => (s.ds ? (wi === NO_WHATIF ? base : analyze(s.ds, wi)) : null), [s.ds, wi, base]);
+
+  const loadDemo = useCallback((biz: Biz) => {
+    setWi(NO_WHATIF);
+    setS((p) => ({ ...p, biz, done: {}, ds: demoDataset(biz) }));
+  }, []);
 
   const ctx: Ctx = {
     ...s,
@@ -95,21 +150,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setWi,
     setLang: (lang) => setS((p) => ({ ...p, lang })),
     setBiz: (biz) => setS((p) => ({ ...p, biz })),
-    loadDemo: (biz) => {
-      setWi(NO_WHATIF);
-      setS((p) => ({ ...p, biz, done: {}, ds: demoDataset(biz, generateDemo) }));
-    },
+    loadDemo,
     loadRows: (rows, source, biz) => {
       setWi(NO_WHATIF);
-      const last = rows.map((r) => r.date).sort().at(-1)!;
+      const dates = rows.map((r) => r.date).sort();
+      const last = dates[dates.length - 1];
       const today = fmtDate(addDays(parseDate(last), 1));
       const sales = rows.filter((r) => r.type === "sale" && r.date >= fmtDate(addDays(parseDate(today), -30))).reduce((x, r) => x + r.amount, 0);
       setS((p) => ({
         ...p,
         biz,
         done: {},
-        ds: { biz, isDemo: false, source, rows, today, cash: Math.round((sales * 0.25) / 1000) * 1000, calendar: detectCalendar(rows) },
+        ds: { biz, isDemo: false, source, rows, today, cash: Math.max(0, Math.round((sales * 0.25) / 1000) * 1000), calendar: detectCalendar(rows) },
       }));
+    },
+    loadDataset: (ds) => {
+      setWi(NO_WHATIF);
+      setS((p) => ({ ...p, biz: ds.biz, done: {}, ds }));
     },
     setCash: (cash) => setS((p) => (p.ds ? { ...p, ds: { ...p.ds, cash } } : p)),
     setCalendar: (calendar) => setS((p) => (p.ds ? { ...p, ds: { ...p.ds, calendar } } : p)),
@@ -127,6 +184,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       setWi(NO_WHATIF);
       setS((p) => ({ ds: null, lang: p.lang, done: {}, biz: p.biz }));
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch {}
     },
   };
   return <C.Provider value={ctx}>{children}</C.Provider>;
