@@ -33,14 +33,17 @@ for (const biz of ["shop", "cafe", "salon", "auto"] as Biz[]) {
   const NOTE = "Плейсхолдеры в фигурных скобках ({date}, {until}) оставь в тексте как есть, дословно, не заменяй их словами вроде «сегодня».";
   const facts = { ...f, note: NOTE, today: undefined, story: storyText(a.story, a, "ru").sentence.replace(date, "{date}"), tax: { ...(f.tax as object), social: undefined }, paymentsUntilHardestDay: undefined };
   const actions = await call("actions", facts);
-  const briefOk = (r: Record<string, unknown>) => Array.isArray(r.messages) && (r.messages as string[]).length >= 2 && !(r.messages as string[]).some((m) => /сегодня[^.]*резерв/i.test(m));
-  const brief = await call("brief", facts, 5, briefOk);
+  const briefOk = (r: Record<string, unknown>) => Array.isArray(r.messages) && (r.messages as string[]).length >= 2 && !(r.messages as string[]).some((m) => /резерв/i.test(m)) && !(r.messages as string[]).some((m) => /сегодня[^.]*резерв/i.test(m));
+  // в брифинг — только цифры, которые не меняются от даты (налоговый резерв растёт каждый день)
+  const st = storyText(a.story, a, "ru");
+  const briefFacts = { note: NOTE + " Пиши о будущем: платёж ещё не прошёл.", freeToday: money(a.story.free), story: st.sentence.replace(date, "{date}"), cause: st.cause, reserveMeaning: "резерв — это налог за полугодие плюс деньги на 7 дней аренды, зарплаты и коммуналки; их нельзя тратить", frozen: money(a.frozenTotal), actions: (f.actions as unknown[]).slice(0, 2) };
+  const brief = await call("brief", briefFacts, 6, briefOk);
   const promo: Record<string, { ru: string; kz: string }> = {};
   for (const d of a.dead.slice(0, 3)) {
     const disc = d.daysNoSale >= 60 ? 0.4 : d.daysNoSale >= 45 ? 0.3 : 0.25;
     const price = Math.round((d.retail * (1 - disc)) / 10) * 10;
     void sellThrough;
-    const r = await call("promo", { note: NOTE, item: d.name, itemKz: dn(d.name, "kz"), price: money(price), oldPrice: money(d.retail), discount: `${Math.round(disc * 100)}%`, untilRu: "{until}", untilKz: "{until}", left: String(d.stockQty), city: "Тараз" }, 5, (x) => String(x.ru).includes("{until}") && String(x.kz).includes("{until}") && String(x.ru).includes(d.name) && !/[әғқңөұүһі]/i.test(String(x.ru)) && /бұрын/i.test(String(x.kz)));
+    const r = await call("promo", { note: NOTE, item: d.name, itemKz: dn(d.name, "kz"), price: money(price), oldPrice: money(d.retail), discount: `${Math.round(disc * 100)}%`, untilRu: "{until}", untilKz: "{until}", left: String(d.stockQty), city: "Тараз" }, 5, (x) => String(x.ru).includes("{until}") && String(x.kz).includes("{until}") && String(x.ru).includes(d.name) && !/[әғқңөұүһі]/i.test(String(x.ru)) && /бұрын/i.test(String(x.kz)) && /дейін/.test(String(x.kz)) && !/[а-яәғқңөұүһі][a-z]|[a-z][а-яәғқңөұүһі]/i.test(String(x.kz) + String(x.ru)));
     if (r && typeof r.ru === "string" && typeof r.kz === "string" && r.ru.includes("{until}") && r.kz.includes("{until}")) promo[d.name] = { ru: r.ru, kz: r.kz };
     else console.log("  promo skipped (нет плейсхолдера даты)", biz, d.name);
   }
