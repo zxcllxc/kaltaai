@@ -10,6 +10,8 @@ import { FLAGS } from "@/lib/flags";
 import { guessMapping, ImportError, isConfident, readFile, toRows, TEMPLATE_CSV, type Field, type Mapping, type ParsedTable } from "@/lib/importer";
 import { TopBar } from "./topbar";
 import { QuickStart } from "./quick";
+import { PhotoImport } from "./photo";
+import { useFlag } from "@/lib/use-flag";
 import { cn } from "@/lib/utils";
 
 export function Start() {
@@ -21,6 +23,7 @@ export function Start() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [quick, setQuick] = useState(false);
+  const photoOn = useFlag("photo");
 
   const FIELD_LABEL: Record<Field, string> = {
     date: t.fDate,
@@ -136,6 +139,7 @@ export function Start() {
             <Upload className="size-5" aria-hidden /> {busy ? t.reading : t.upload}
           </Button>
           <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,.txt" className="hidden" aria-label={t.upload} onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+          {photoOn && <PhotoImport />}
           {FLAGS.quickStart && (
             <Button size="lg" variant="ghost" className="h-12" onClick={() => setQuick((q) => !q)} aria-expanded={quick}>
               <ListChecks className="size-5" aria-hidden /> {t.quickStart}

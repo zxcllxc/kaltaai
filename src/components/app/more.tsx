@@ -14,6 +14,8 @@ import { TaxScreen } from "./tax";
 import { DeleteButton } from "./topbar";
 import { ErrorBoundary } from "./error-boundary";
 import { cn } from "@/lib/utils";
+import { PhotoImport } from "./photo";
+import { useFlag } from "@/lib/use-flag";
 
 type Sub = "tax" | "calendar" | "promo" | "health" | "reviews" | "data";
 let initialSub: Sub = "tax";
@@ -24,6 +26,7 @@ export function openMoreSub(s: Sub) {
 export function More() {
   const { ds, t, lang, clear } = useApp();
   const [sub, setSub] = useState<Sub>(initialSub);
+  const photoOn = useFlag("photo");
   if (!ds) return null;
   const subs: { id: Sub; label: string; icon: React.ElementType }[] = [
     { id: "tax", label: t.subTax, icon: Landmark },
@@ -65,6 +68,7 @@ export function More() {
                 </Button>
                 <DeleteButton />
               </div>
+              {photoOn && <PhotoImport />}
               <p className="text-xs text-muted-foreground">{t.privacyData}</p>
             </CardContent>
           </Card>

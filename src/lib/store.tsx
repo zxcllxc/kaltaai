@@ -29,6 +29,7 @@ interface Ctx extends Saved {
   loadDemo: (b: Biz) => void;
   loadRows: (rows: Row[], source: string, biz: Biz) => void;
   loadDataset: (ds: Dataset) => void;
+  appendRows: (rows: Row[], source: string, biz: Biz) => void;
   setCash: (n: number) => void;
   setCalendar: (c: CalendarItem[]) => void;
   setTax: (t: Partial<TaxSettings>) => void;
@@ -163,6 +164,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         done: {},
         ds: { biz, isDemo: false, source, rows, today, cash: Math.max(0, Math.round((sales * 0.25) / 1000) * 1000), calendar: detectCalendar(rows) },
       }));
+    },
+    appendRows: (rows, source, biz) => {
+      setWi(NO_WHATIF);
+      setS((p) => {
+        // к своим данным дописываем; поверх демо или с пустого старта — новый набор
+        const base = p.ds && !p.ds.isDemo ? p.ds : null;
+        const all = [...(base?.rows ?? []), ...rows];
+        const dates = all.map((r) => r.date).sort();
+        const today = fmtDate(addDays(parseDate(dates[dates.length - 1]), 1));
+        const calendar = base ? base.calendar : detectCalendar(all);
+        const cash = base ? base.cash : Math.max(0, Math.round((all.filter((r) => r.type === "sale").reduce((x, r) => x + r.amount, 0) * 0.25) / 1000) * 1000);
+        return { ...p, biz: base?.biz ?? biz, ds: { biz: base?.biz ?? biz, isDemo: false, source: base ? base.source + " + " + source : source, rows: all, today: base && base.today > today ? base.today : today, cash, calendar } };
+      });
     },
     loadDataset: (ds) => {
       setWi(NO_WHATIF);

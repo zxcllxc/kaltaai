@@ -14,3 +14,15 @@ export const FLAGS = {
 
 export const TELEGRAM_BOT = "KaltaAI_Bot";
 export const SITE_URL = "https://kaltaai.vercel.app";
+
+/** Проверка фичи на проде до включения для всех: /?ff=photo,voice включает флаги только в этом браузере. */
+export function localFlags(): string[] {
+  try {
+    const u = new URL(window.location.href);
+    const ff = u.searchParams.get("ff");
+    if (ff != null) localStorage.setItem("kalta-ff", ff);
+    return (localStorage.getItem("kalta-ff") ?? "").split(",").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
