@@ -53,9 +53,18 @@ export function TopBar() {
             {t.demoBadge}
           </span>
         )}
-        <button className="shrink-0 rounded-md border px-2 py-1 text-xs font-semibold" onClick={() => setLang(lang === "ru" ? "kz" : "ru")} aria-label={lang === "ru" ? "ҚАЗ — қазақ тіліне ауысу" : "РУС — переключить на русский"}>
+        {/* ссылка, а не кнопка: тап до загрузки JS (медленный интернет) тоже переключает язык через /?lang= */}
+        <a
+          href={`/?lang=${lang === "ru" ? "kz" : "ru"}`}
+          className="shrink-0 rounded-md border px-2 py-1 text-xs font-semibold"
+          onClick={(e) => {
+            e.preventDefault();
+            setLang(lang === "ru" ? "kz" : "ru");
+          }}
+          aria-label={lang === "ru" ? "ҚАЗ — қазақ тіліне ауысу" : "РУС — переключить на русский"}
+        >
           {t.langToggle}
-        </button>
+        </a>
         <button className="shrink-0 rounded-md border p-1.5" onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} aria-label={t.themeAria}>
           <Moon className="size-4 dark:hidden" aria-hidden />
           <Sun className="size-4 hidden dark:block" aria-hidden />

@@ -38,7 +38,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 
 // До первой отрисовки: если в браузере уже есть данные (или ссылка ?demo=), прячем лендинг,
 // чтобы не мигал перед дашбордом. Через 5 с CSS всё равно покажет лендинг (на случай сбоя JS).
-const BOOT = `try{var v=localStorage.getItem("findir:v1");if((v&&(v.indexOf('"ds":{')>-1||v.indexOf('"lang":"kz"')>-1))||/[?&]demo=(shop|cafe|salon|auto)/.test(location.search))document.documentElement.classList.add("kalta-boot")}catch(e){}`;
+const BOOT = `try{var v=localStorage.getItem("findir:v1");if((v&&(v.indexOf('"ds":{')>-1||v.indexOf('"lang":"kz"')>-1))||/[?&](demo=(shop|cafe|salon|auto)|lang=kz)/.test(location.search))document.documentElement.classList.add("kalta-boot")}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
