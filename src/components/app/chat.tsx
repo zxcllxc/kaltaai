@@ -100,7 +100,7 @@ export function Chat() {
         <div ref={end} />
       </div>
       {done && (
-        <div className="sticky bottom-16 space-y-2 px-3 pb-3">
+        <div className="sticky bottom-16 space-y-2 border-t border-black/10 bg-[#c7d8b8] px-3 pb-3 pt-2 dark:border-white/10 dark:bg-[#0e1621]">
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar" role="list">
             {t.suggestions.map((s) => (
               <button key={s} role="listitem" onClick={() => ask(s)} disabled={typing} className="shrink-0 rounded-full bg-white dark:bg-[#182533] px-3 py-1.5 text-xs text-[#1f4a73] dark:text-[#8ec5ff] shadow disabled:opacity-60">

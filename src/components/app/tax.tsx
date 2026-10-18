@@ -66,9 +66,9 @@ export function TaxScreen() {
         <CardContent className="space-y-2">
           {!isOur && (
             <>
-              <div className="flex justify-between gap-2 text-sm">
-                <span className="font-semibold">{t.limitTitle}</span>
-                <span className="text-muted-foreground text-right">{t.limitText(money(tx.limit))}</span>
+              <div className="text-sm">
+                <div className="font-semibold">{t.limitTitle}</div>
+                <div className="text-muted-foreground">{t.limitText(money(tx.limit))}</div>
               </div>
               <div className="h-3 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(tx.limitShare * 100)} aria-label={t.limitTitle}>
                 <div className={`h-full ${tx.limitShare > 0.8 ? "bg-red-600" : tx.limitShare > 0.5 ? "bg-amber-500" : "bg-emerald-600"}`} style={{ width: `${Math.min(100, Math.max(1, tx.limitShare * 100))}%` }} />

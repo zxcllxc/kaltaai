@@ -7,7 +7,7 @@ export const FLAGS = {
   /** Голосовой ввод — выключен: в NVIDIA NIM с текущим ключом нет REST-распознавания речи */
   voice: process.env.NEXT_PUBLIC_FLAG_VOICE === "1",
   /** Фото тетради/чека через vision-модель */
-  photo: process.env.NEXT_PUBLIC_FLAG_PHOTO === "1",
+  photo: process.env.NEXT_PUBLIC_FLAG_PHOTO !== "0",
   /** Заранее сгенерированные ИИ-тексты для демо-профилей */
   aiCache: process.env.NEXT_PUBLIC_FLAG_AI_CACHE !== "0",
 };

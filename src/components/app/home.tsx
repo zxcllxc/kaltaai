@@ -38,15 +38,15 @@ export function Home() {
           <h2 className="text-sm font-medium opacity-95">{t.foundTitle}</h2>
           <div className="text-4xl sm:text-5xl font-bold tracking-tight tabular-nums">{money(a.found.total)}</div>
           <div className="text-sm opacity-90 mt-1">{t.foundSub}</div>
-          <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+          <div className="mt-4 divide-y divide-white/15 overflow-hidden rounded-xl bg-white/10 text-sm">
             {[
               [t.foundFrozen, a.found.frozen],
               [t.foundWeak, a.found.weak],
               [t.foundRise, a.found.rise],
             ].map(([l, v]) => (
-              <button key={String(l)} onClick={() => go("leaks")} className="rounded-lg bg-white/15 p-2 text-left hover:bg-white/25">
-                <div className="opacity-95">{l}</div>
-                <div className="font-semibold text-sm tabular-nums">{money(Number(v))}</div>
+              <button key={String(l)} onClick={() => go("leaks")} className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-white/10">
+                <span className="opacity-95">{l}</span>
+                <span className="font-semibold tabular-nums shrink-0">{money(Number(v))} →</span>
               </button>
             ))}
           </div>

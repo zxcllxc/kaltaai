@@ -43,7 +43,9 @@ export function Forecast() {
             <Legend c="bg-emerald-600" l={t.legendBase} />
             <Legend c="bg-orange-500" l={t.legendPess} />
             <Legend c="bg-blue-500" l={t.legendOpt} />
-            <Legend c="bg-amber-600" l={t.legendReserve} />
+            <span className="inline-flex items-center gap-1">
+              <span className="w-4 border-t-2 border-dashed border-amber-600" aria-hidden /> {t.legendReserve}
+            </span>
             {changed ? <Legend c="bg-slate-400" l={t.legendWas} /> : null}
           </div>
           <p className="text-xs text-muted-foreground">{st.reserveLine}</p>

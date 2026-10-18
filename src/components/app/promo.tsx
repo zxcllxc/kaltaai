@@ -48,9 +48,7 @@ export function Promo() {
                 </div>
               </div>
               <div className="rounded-lg bg-emerald-500/10 p-2 text-sm">{t.expected(money(rev), Math.round(st * 100), money(price))}</div>
-              <Post label="RU" text={ru} />
-              <Post label="KZ" text={kz} />
-              <AiPosts preset={preset} facts={{ item: d.name, itemKz: dn(d.name, "kz"), price: money(price), oldPrice: money(d.retail), discount: `${pct}%`, untilRu: human(until), untilKz: dueDate(until, "kz"), left: String(d.stockQty), city: "Тараз" }} />
+              <AiPosts ru={ru} kz={kz} preset={preset} facts={{ item: d.name, itemKz: dn(d.name, "kz"), price: money(price), oldPrice: money(d.retail), discount: `${pct}%`, untilRu: human(until), untilKz: dueDate(until, "kz"), left: String(d.stockQty), city: "Тараз" }} />
             </CardContent>
           </Card>
         );
@@ -60,7 +58,8 @@ export function Promo() {
   );
 }
 
-function AiPosts({ facts, preset }: { facts: Record<string, string>; preset: { ru: string; kz: string } | null }) {
+/** Если есть ИИ-посты — показываем их, шаблон прячем под раскрывашку; иначе — шаблон и кнопка ИИ. */
+function AiPosts({ facts, preset, ru, kz }: { facts: Record<string, string>; preset: { ru: string; kz: string } | null; ru: string; kz: string }) {
   const { t } = useApp();
   const [st, setSt] = useState<"idle" | "loading" | "fail" | { ru: string; kz: string }>(preset ?? "idle");
   if (typeof st === "object")
@@ -68,9 +67,19 @@ function AiPosts({ facts, preset }: { facts: Record<string, string>; preset: { r
       <>
         <Post label="RU" text={st.ru} ai />
         <Post label="KZ" text={st.kz} ai />
+        <details className="rounded-lg border border-dashed px-2 py-1.5 text-sm">
+          <summary className="cursor-pointer text-xs text-muted-foreground">{t.showTemplate}</summary>
+          <div className="mt-2 space-y-2">
+            <Post label="RU" text={ru} />
+            <Post label="KZ" text={kz} />
+          </div>
+        </details>
       </>
     );
   return (
+    <>
+    <Post label="RU" text={ru} />
+    <Post label="KZ" text={kz} />
     <button
       className="w-full rounded-lg border border-violet-500/40 py-2 text-sm text-violet-800 dark:text-violet-300 disabled:opacity-60"
       disabled={st === "loading"}
@@ -82,6 +91,7 @@ function AiPosts({ facts, preset }: { facts: Record<string, string>; preset: { r
     >
       {st === "loading" ? t.aiWriting : st === "fail" ? t.aiFail : t.aiPost}
     </button>
+    </>
   );
 }
 
