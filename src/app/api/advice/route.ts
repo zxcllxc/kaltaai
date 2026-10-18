@@ -56,8 +56,8 @@ function prompt(mode: Mode, lang: Lang, facts: unknown, question?: string) {
       return `${f}\nНапиши 2 коротких ободряющих сообщения (до 160 символов) для утреннего брифинга владельцу, на «вы». Не объясняй резерв и не пересказывай facts.story. 1) Первый шаг на сегодня — facts.actions[0] — и его эффект в ₸. 2) Второй шаг — facts.actions[1] — и его эффект в ₸. Ответ строго JSON: {"messages": ["...", "..."]}`;
     case "ask":
       return kz
-        ? `${f}\nИесінің сұрағы: ${question}\nfacts.computedAnswer — кодпен есептелген дайын жауап. Оны 2–4 қысқа сөйлеммен өз сөзіңмен қазақша қайта айт. Жаңа сандар қоспа.`
-        : `${f}\nВопрос владельца: ${question}\nВ facts.computedAnswer — готовый ответ, посчитанный кодом. Перескажи его своими словами в 2–4 коротких предложениях на «вы». Можно опустить детали, нельзя добавлять новые числа.`;
+        ? `${f}\nИесінің сұрағы: ${question}\nfacts.computedAnswer — кодпен есептелген дайын жауап. Оны 2–4 қысқа сөйлеммен өз сөзіңмен қазақша қайта айт. Мағынасын өзгертпе, тек computedAnswer ішіндегі сандарды қолдан.`
+        : `${f}\nВопрос владельца: ${question}\nВ facts.computedAnswer — готовый ответ, посчитанный кодом. Перескажи его своими словами в 2–4 коротких предложениях на «вы». Смысл не меняй: что, когда и сколько — как в готовом ответе. Используй только числа из computedAnswer, детали можно опустить.`;
     case "promo":
       return `${f}\nНапиши пост для Instagram/WhatsApp об акции на русском (поле ru) и на казахском (поле kz). До 280 символов каждый, 1–2 эмодзи, призыв написать в WhatsApp. В ru используй название item и дату untilRu, в kz — itemKz и untilKz. Цену, старую цену, скидку и остаток (left) пиши дословно. В ru не используй казахские слова, в kz старую цену пиши как «бұрынғы бағасы». Ответ строго JSON: {"ru": "...", "kz": "..."}`;
     case "reviews":
@@ -127,8 +127,10 @@ export async function POST(req: Request) {
     const j = await r.json();
     const text = clean(String(j.choices?.[0]?.message?.content ?? ""));
     if (!text) return NextResponse.json({ ai: false, reason: "empty" });
-    // защита от выдуманных чисел: каждое число ≥ 100 из ответа должно быть в фактах (или в вопросе)
-    const factStr = (JSON.stringify(body.facts ?? {}) + (question ?? "")).replace(/[\s  ]/g, "");
+    // защита от выдуманных чисел: каждое число ≥ 100 из ответа должно быть в фактах (или в вопросе).
+    // В чате ответ — пересказ facts.computedAnswer, поэтому числа берём только из него: иначе ИИ склеивает посторонние суммы.
+    const computed = mode === "ask" && typeof (body.facts as { computedAnswer?: unknown } | undefined)?.computedAnswer === "string" ? String((body.facts as { computedAnswer: string }).computedAnswer) : null;
+    const factStr = ((computed ?? JSON.stringify(body.facts ?? {})) + (question ?? "")).replace(/[\s  ]/g, "");
     const invented = (text.replace(/(\d)[\s  ](?=\d{3})/g, "$1").match(/\d{3,}/g) ?? []).filter((n) => !factStr.includes(n));
     if (invented.length) return NextResponse.json({ ai: false, reason: "invented-numbers" });
     if (mode === "ask") {
