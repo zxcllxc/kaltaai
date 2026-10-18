@@ -87,7 +87,7 @@ export function Shell() {
             }}
           />
         )}
-        <nav className="fixed bottom-0 inset-x-0 z-30 border-t bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom)] print:hidden" aria-label="KaltaAI">
+        <nav className="fixed bottom-0 inset-x-0 z-30 border-t bg-background pb-[env(safe-area-inset-bottom)] print:hidden" aria-label="KaltaAI">
           <div className="mx-auto grid max-w-3xl grid-cols-6">
             {nav.map((n) => (
               <button

@@ -37,7 +37,7 @@ export function TopBar() {
   const { ds, t, lang, setLang } = useApp();
   const { resolvedTheme, setTheme } = useTheme();
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur print:hidden">
+    <header className="sticky top-0 z-30 border-b bg-background print:hidden">
       <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 h-14">
         <div className="size-8 shrink-0 rounded-lg bg-emerald-700 text-white grid place-items-center font-bold" aria-hidden>
           ₸
